@@ -1,0 +1,29 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.1.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Launch HelloCV",
+            "request": "launch",
+            "mainClass": "test_package.HelloCV",
+            "projectName": "learn-opencv-b_c27d2e0c"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch) - Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Main<zavrsni>",
+            "request": "launch",
+            "mainClass": "engineTester.Main",
+            "projectName": "zavrsni",
+            "vmArgs": "-Djava.library.path=lib/natives"
+        }
+    ]
+  }

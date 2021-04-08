@@ -1,0 +1,8 @@
+{
+    "java.project.referencedLibraries": [
+        //"lib/opencv-4.5.2/build/java/opencv-452.jar",
+        "D:/Code/OpenCV/opencv-4.5.2/build/java/opencv-452.jar",
+        //"D:/Code/OpenCV/opencv-4.5.2/build/java/x86/opencv_java452.dll"
+    ]
+
+}
