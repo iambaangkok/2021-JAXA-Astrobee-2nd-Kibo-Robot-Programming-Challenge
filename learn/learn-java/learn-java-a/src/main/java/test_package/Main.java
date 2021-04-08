@@ -24,6 +24,10 @@ public class Main
 
         sc.close();
 
+        testString = "10201";
+        System.out.println(Func01.isPalindrome(testString));
+        testString = "fuck";
+        System.out.println(Func01.isPalindrome(testString));
 
     }
 }
