@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "Launch HelloCV2",
+            "request": "launch",
+            "mainClass": "test_package.HelloCV2",
+            "projectName": "learn-opencv-b_c27d2e0c"
+        },
+        {
+            "type": "java",
             "name": "Launch HelloCV",
             "request": "launch",
             "mainClass": "test_package.HelloCV",
