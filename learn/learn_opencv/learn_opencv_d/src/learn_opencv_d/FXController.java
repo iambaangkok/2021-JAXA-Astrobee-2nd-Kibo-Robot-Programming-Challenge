@@ -1,14 +1,18 @@
 package learn_opencv_d;
 
+import java.io.ByteArrayInputStream;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 
 import learn_opencv_d.utils.Utils;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -17,7 +21,7 @@ import javafx.scene.image.ImageView;
 
 
 public class FXController {
-	@FXML
+	@FXML // stating that this variable connects to .fxml file
 	private Button button;
 	@FXML
 	private ImageView currentFrame;
@@ -40,47 +44,55 @@ public class FXController {
 	 *            the push button event
 	 */
 	@FXML
-	protected void startCamera(ActionEvent event)
-	{
-		if (!this.cameraActive)
-		{
+	protected void startCamera(ActionEvent event){
+		if (!this.cameraActive){
 
 			this.capture.open(cameraId);
 			
 			// is the video stream available?
-			if (this.capture.isOpened())
-			{
+			if (this.capture.isOpened()){
 				this.cameraActive = true;
 				
 				// grab a frame every 33 ms (30 frames/sec)
 				Runnable frameGrabber = new Runnable() {
-					
 					@Override
-					public void run()
-					{
+					public void run(){
 						// effectively grab and process a single frame
 						Mat frame = grabFrame();
+						
+						
+						
 						// convert and show the frame
-						Image imageToShow = Utils.mat2Image(frame);
-						updateImageView(currentFrame, imageToShow);
+						MatOfByte buffer = new MatOfByte();
+						Imgcodecs.imencode(".png", frame, buffer);
+						Image imageToShow = new Image(new ByteArrayInputStream(buffer.toArray()));
+						
+						
+						
+						
+						Platform.runLater(new Runnable() {
+					        @Override public void run() { currentFrame.setImage(imageToShow); }
+						});
+						//Image imageToShow = Utils.mat2Image(frame);
+						//updateImageView(currentFrame, imageToShow);
+						
 						System.out.println("running ");
 					}
 				};
 				
 				this.timer = Executors.newSingleThreadScheduledExecutor();
 				this.timer.scheduleAtFixedRate(frameGrabber, 0, 33, TimeUnit.MILLISECONDS);
+				//frameGrabber.run();
 				
 				// update the button content
 				this.button.setText("Stop Camera");
 			}
-			else
-			{
+			else{
 				// log the error
 				System.err.println("Impossible to open the camera connection...");
 			}
 		}
-		else
-		{
+		else{
 			// the camera is not active at this point
 			this.cameraActive = false;
 			// update again the button content
@@ -91,28 +103,29 @@ public class FXController {
 		}
 	}
 	
+	
+	
 	/**
 	 * Get a frame from the opened video stream (if any)
 	 *
 	 * @return the {@link Mat} to show
 	 */
-	private Mat grabFrame()
-	{
+	private Mat grabFrame(){
 		// init everything
 		Mat frame = new Mat();
 		
 		// check if the capture is open
-		if (this.capture.isOpened())
-		{
-			try
-			{
+		if (this.capture.isOpened()){
+			try{
 				// read the current frame
+				System.out.println("reading footage");
 				this.capture.read(frame);
 				
 				// if the frame is not empty, process it
-				if (!frame.empty())
-				{
+				if (!frame.empty()){
+					System.out.println("converting->grayscale");
 					Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2GRAY);
+					
 				}
 				
 			}
@@ -131,6 +144,7 @@ public class FXController {
 	 */
 	private void stopAcquisition()
 	{
+		System.out.println("stopped aqquiring");
 		if (this.timer!=null && !this.timer.isShutdown())
 		{
 			try
@@ -138,6 +152,7 @@ public class FXController {
 				// stop the timer
 				this.timer.shutdown();
 				this.timer.awaitTermination(33, TimeUnit.MILLISECONDS);
+				
 			}
 			catch (InterruptedException e)
 			{
@@ -165,6 +180,20 @@ public class FXController {
 	{
 		Utils.onFXThread(view.imageProperty(), image);
 	}
+	
+	
+	/**
+	 *	Flip the matrix horizontally - vertically
+	 
+	private void flipMatrix(Mat mat, boolean horizontally, boolean vertically) {
+		
+		
+		for(int i = 0 ; i < mat.rows(); ++i) {
+			for(int j = 0 ; j < mat.cols()/2; ++j) {
+				mat.get(i, j);
+			}
+		}
+	}*/
 	
 	/**
 	 * On application close, stop the acquisition from the camera
