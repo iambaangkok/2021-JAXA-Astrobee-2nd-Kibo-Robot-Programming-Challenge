@@ -198,8 +198,7 @@ public class FXController {
 	/**
 	 * On application close, stop the acquisition from the camera
 	 */
-	protected void setClosed()
-	{
+	protected void setClosed(){
 		this.stopAcquisition();
 	}
 		

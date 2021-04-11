@@ -10,11 +10,21 @@ import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.fxml.FXMLLoader;
 
+// Your First JavaFX Application with OpenCV
+
 public class Main extends Application {
+	
+	public static void main(String[] args){
+		// load the native OpenCV library
+		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+		
+		launch(args);
+	}
+	
+	
 	//@Override
 	public void start(Stage primaryStage) {
-		try
-		{
+		try{
 			// load the FXML resource
 			FXMLLoader loader = new FXMLLoader(getClass().getResource("FirstFX.fxml"));
 			// store the root element so that the controllers can use it
@@ -32,24 +42,16 @@ public class Main extends Application {
 			// set the proper behavior on closing the application
 			FXController controller = loader.getController();
 			primaryStage.setOnCloseRequest((new EventHandler<WindowEvent>() {
-				public void handle(WindowEvent we)
-				{
+				public void handle(WindowEvent we){
 					controller.setClosed();
 				}
 			}));
 		}
-		catch (Exception e)
-		{
+		catch (Exception e){
 			e.printStackTrace();
 		}
 	}
 	
 	
-	public static void main(String[] args)
-	{
-		// load the native OpenCV library
-		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-		
-		launch(args);
-	}
+	
 }
