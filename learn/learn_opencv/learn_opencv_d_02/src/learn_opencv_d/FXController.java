@@ -27,6 +27,11 @@ public class FXController {
 	private ImageView currentFrame;
 	@FXML
 	private CheckBox grayscale;
+	@FXML
+	private CheckBox logoCheckBox;
+	
+	Mat logo;
+	
 	
 	// a timer for acquiring the video stream
 	private ScheduledExecutorService timer;
@@ -38,6 +43,9 @@ public class FXController {
 	private boolean cameraActive = false;
 	// the id of the camera to be used
 	private static int cameraId = 0;
+	
+	
+	
 	
 	/**
 	 * The action triggered by pushing the button on the GUI
@@ -105,7 +113,12 @@ public class FXController {
 		}
 	}
 	
-	
+	@FXML
+	protected void loadLogo()
+	{
+	 if (logoCheckBox.isSelected())
+	    this.logo = Imgcodecs.imread("resources/Poli.png");
+	}
 	
 	/**
 	 * Get a frame from the opened video stream (if any)
@@ -155,7 +168,7 @@ public class FXController {
 		
 		return frame;
 	}
-	
+		
 	/**
 	 * Stop the acquisition from the camera and release all the resources
 	 */
@@ -198,7 +211,6 @@ public class FXController {
 	{
 		Utils.onFXThread(view.imageProperty(), image);
 	}
-	
 	
 	/**
 	 *	Flip the matrix horizontally - vertically

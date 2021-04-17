@@ -10,7 +10,7 @@ import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.fxml.FXMLLoader;
 
-// OpenCV Basics
+// OpenCV Basics	
 
 public class Main extends Application {
 	
@@ -20,6 +20,7 @@ public class Main extends Application {
 		
 		launch(args);
 	}
+	
 	
 	
 	//@Override
