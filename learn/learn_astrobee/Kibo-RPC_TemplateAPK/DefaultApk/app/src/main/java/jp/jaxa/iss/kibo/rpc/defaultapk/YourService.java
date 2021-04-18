@@ -13,7 +13,8 @@ public class YourService extends KiboRpcService {
         api.judgeSendStart();
         // move Astrobee from the starting point to P1 1
         Point point = new Point(1.1, 2.2, 3.3);
-        Quaternion quaternion = new Quaternion(4.4, 5.5, 6.6, 7.7); api.moveTo(point, quaternion, true);
+        Quaternion quaternion = new Quaternion(4.4, 5.5, 6.6, 7.7);
+        api.moveTo(point, quaternion, true);
         // :
         // once Astrobee came to P1 1, get a camera image
         Bitmap snapshot = api.getBitmapNavCam();
