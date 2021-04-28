@@ -17,8 +17,8 @@ public class YourService extends KiboRpcService {
         api.startMission();
 
         // astrobee is undocked and the mission starts
-        moveToWrapper(11.71, -9.53, 5.35, 0, 0, 0, 1);
-
+        moveToWrapper(11.21, -9.8, 4.79, 0, 0, -0.707, 0.707);
+        moveToWrapper(9.815, -9.806, 4.293, 1, 0, 0, 0);
         // irradiate the laser
         api.laserControl(true);
 
