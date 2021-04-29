@@ -29,8 +29,8 @@ import org.opencv.calib3d.Calib3d;
 // opencv library
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 // java library
-
 
 /**
  * Class meant to handle commands from the Ground Data System and execute them in Astrobee
@@ -45,11 +45,12 @@ public class YourService extends KiboRpcService {
         // astrobee is undocked and the mission starts
         api.startMission();
 
-        // move to point A
+        // move to point A (11.21, -9.8, 4.79, 0) quaternion A (0, 0, -0.707, 0.707)
         moveToWrapper(11.21, -9.8, 4.79, 0, 0, -0.707, 0.707);
 
-        // scan QR Code to get point A'
-        
+        // scan QR Code to get point A' (qrData[0], qrData[1], qrData[2]) quaternion A' (0, 0, -0.707, 0.707) KOZ pattern (qrData[3])
+        double[] qrData = readQRCode(11.21, -9.8, 4.79, 0, 0, -0.707, 0.707, 1);
+        moveToWrapper(qrData[0], qrData[1], qrData[2],0, 0, -0.707, 0.707);
 
         api.reportMissionCompletion();
     }
@@ -72,30 +73,121 @@ public class YourService extends KiboRpcService {
         }
     }
 
-    private void readQRCode(double px, double py, double pz, double qx, double qy, double qz, double qw, int noqr){
+    private void setFlashOn(boolean status){
+        if(status == true){
+            api.flashlightControlFront(1f);
 
-        // stabilize
-        moveToWrapper(px, py, pz, qx, qy, qz, qw);
+            try{
+                Thread.sleep(1000);
+            }catch (InterruptedException e){
+                e.printStackTrace();
+            }
+        }else{
+            api.flashlightControlFront(0f);
+        }
+    }
 
-        // get nav cam pic
-        Mat pic = api.getMatNavCam();
+    private void cropImage(Mat sourceImage, Mat targetMat, Rect roi){
+        Mat croppedImage = new Mat(sourceImage,roi);
+        croppedImage.copyTo(targetMat);
+        return;
+    }
 
-        // undistort fisheye
+    public Bitmap resizeImage(Mat sourceImage, int width, int height)
+    {
+        Size size = new Size(width, height);
+        Imgproc.resize(sourceImage, sourceImage, size);
+
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        matToBitmap(sourceImage, bitmap, false);
+        return bitmap;
+    }
+
+    private Mat undistortImage(Mat sourceImage, Rect roi){
         double[][] navCamIntrinsics = api.getNavCamIntrinsics();
+
         Mat cameraMat = new Mat();
         cameraMat.put(3, 3, navCamIntrinsics[0]);
+
         Mat distortionCoeff = new Mat();
         distortionCoeff.put(1,5,navCamIntrinsics[1]);
 
-        Rect roi = new Rect();
-
-        Mat newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat,distortionCoeff,pic.size(),1, pic.size(), roi);
+        Mat newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat,distortionCoeff,sourceImage.size(),1, sourceImage.size(), roi);
 
         Mat undistortedPic = new Mat();
-        Calib3d.fisheye_undistortImage(pic,undistortedPic,cameraMat,distortionCoeff,newCameraMat);
+        Calib3d.fisheye_undistortImage(sourceImage,undistortedPic,cameraMat,distortionCoeff,newCameraMat);
 
-        //Bitmap  bmap = new BinaryBitmap (pic);
+        return undistortedPic;
+    }
 
+    private double[] readQRCode(double px, double py, double pz, double qx, double qy, double qz, double qw, int qrnumber){
+
+        String qrData = null;
+        int loopCount = 0;
+        double result_x = 0, result_y = 0, result_z = 0;
+        int kozPattern = 1;
+
+        while(qrData == null && loopCount < LOOP_MAX){
+            Log.d("QR[status]:", " start");
+            long start_time = SystemClock.elapsedRealtime();
+
+            // stabilize
+            moveToWrapper(px, py, pz, qx, qy, qz, qw);
+
+            // get nav cam pic
+            setFlashOn(true);
+            Mat pic = api.getMatNavCam();
+
+            // undistort fisheye
+            Rect roi = new Rect();
+            Mat undistortedPic = undistortImage(pic,roi);
+
+            // crop image to ROI
+            Mat croppedPic = new Mat();
+            cropImage(undistortedPic, croppedPic, roi);
+
+            // enlarge image for easier scanning
+            Bitmap bitmap = resizeImage(croppedPic, 2000, 2000*roi.height/roi.width);
+
+            // scan QR
+            int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
+            bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+
+            LuminanceSource source = new RGBLuminanceSource(bitmap.getWidth(), bitmap.getHeight(), pixels);
+            BinaryBitmap bitmapToRead = new BinaryBitmap(new HybridBinarizer(source));
+
+            try
+            {
+                com.google.zxing.Result result = new QRCodeReader().decode(bitmapToRead);
+                qrData = result.getText();
+                Log.d("QR[status]:", " Detected");
+
+                // Format : "p":<pattern>,"x":<x>,"y":<y>,"z":<z>
+                Scanner s = new Scanner(qrData);
+                kozPattern = s.nextInt();
+                result_x = s.nextDouble();
+                result_y = s.nextDouble();
+                result_z = s.nextDouble();
+            }
+            catch (Exception e)
+            {
+                Log.d("QR[status]:", " Not detected");
+            }
+
+            Log.d("QR[status]:", " stop");
+            long stop_time = SystemClock.elapsedRealtime();
+
+            Log.d("QR[count]:", " " + loopCount);
+            Log.d("QR[total_time]:"," "+ (stop_time-start_time)/1000);
+            loopCount++;
+
+        }
+        setFlashOn(false);
+
+        Log.d("QR[qrData]:", qrData);
+
+        api.sendDiscoveredQR(qrData);
+        return new double[] {result_x, result_y, result_z, kozPattern};
     }
 
 
