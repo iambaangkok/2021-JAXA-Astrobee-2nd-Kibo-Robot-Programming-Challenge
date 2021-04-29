@@ -100,29 +100,37 @@ public class YourService extends KiboRpcService {
     }
 
     public Bitmap resizeImage(Mat sourceImage, int width, int height) {
-        Log.d("resizeImage[roi]: ", String.valueOf(width)+ String.valueOf(height));
+        Log.d("resizeImage[status]: ", "start");
+        Log.d("resizeImage[widthheight]: ", String.valueOf(width)+" "+ String.valueOf(height));
         Size size = new Size(width, height);
         Imgproc.resize(sourceImage, sourceImage, size);
+        Log.d("resizeImage[status]: ", "image resized");
 
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         matToBitmap(sourceImage, bitmap, false);
+        Log.d("resizeImage[status]: ", "bitmap done");
         return bitmap;
     }
 
     private Mat undistortImage(Mat sourceImage, Rect roi){
         Log.d("undistortImage[status]: ", "start");
         double[][] navCamIntrinsics = api.getNavCamIntrinsics();
-
+        Log.d("undistortImage[status]: ", "got navCamIntrinsics");
+        
         Mat cameraMat = new Mat();
         cameraMat.put(3, 3, navCamIntrinsics[0]);
+        Log.d("undistortImage[status]: ", "cameraMat put");
 
         Mat distortionCoeff = new Mat();
         distortionCoeff.put(1,5,navCamIntrinsics[1]);
+        Log.d("undistortImage[status]: ", "distortCoeff put");
 
         Mat newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat,distortionCoeff,sourceImage.size(),1, sourceImage.size(), roi);
+        Log.d("undistortImage[status]: ", "got optimalNewCamMat");
 
         Mat undistortedPic = new Mat();
         Calib3d.fisheye_undistortImage(sourceImage,undistortedPic,cameraMat,distortionCoeff,newCameraMat);
+        Log.d("undistortImage[status]: ", "finished fisheye_undistort");
 
         return undistortedPic;
     }
@@ -163,7 +171,7 @@ public class YourService extends KiboRpcService {
 
             LuminanceSource source = new RGBLuminanceSource(bitmap.getWidth(), bitmap.getHeight(), pixels);
             BinaryBitmap bitmapToRead = new BinaryBitmap(new HybridBinarizer(source));
-
+            Log.d("QR[status]:", " got bitmapToRead");
             try
             {
                 com.google.zxing.Result result = new QRCodeReader().decode(bitmapToRead);
