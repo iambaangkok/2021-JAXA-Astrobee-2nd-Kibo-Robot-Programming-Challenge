@@ -1,5 +1,12 @@
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
+import org.opencv.calib3d.Calib3d;
+import org.opencv.core.Mat;
+import org.opencv.calib3d.Calib3d.*;
+import org.opencv.core.Size;
+
+import java.nio.ByteBuffer;
+
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
 
 import gov.nasa.arc.astrobee.Result;
@@ -18,11 +25,11 @@ public class YourService extends KiboRpcService {
 
         // astrobee is undocked and the mission starts
         moveToWrapper(11.71, -9.53, 5.35, 0, 0, 0, 1);
-
+        String contents = QR();
         // irradiate the laser
         api.laserControl(true);
 
-        // take snapshots
+        // take snapshots9
         api.takeSnapshot();
 
         // move to the rear of Bay7
@@ -43,6 +50,7 @@ public class YourService extends KiboRpcService {
     }
 
     // You can add your method
+
     private void moveToWrapper(double pos_x, double pos_y, double pos_z,
                                double qua_x, double qua_y, double qua_z,
                                double qua_w){
@@ -59,6 +67,39 @@ public class YourService extends KiboRpcService {
             result = api.moveTo(point, quaternion, true);
             ++loopCounter;
         }
+    }
+
+    private String QR(){
+
+        Mat pic = api.getMatNavCam();
+        Size size = pic.size();
+        double[][] NavCam = api.getNavCamIntrinsics();
+        double[] camera = NavCam[0];
+        double[] distCoe = NavCam[1];
+
+        ByteBuffer bcam = ByteBuffer.allocate(camera.length * 8);
+        for(double d : camera) {
+            bcam.putDouble(d);
+        }
+
+        ByteBuffer bdist = ByteBuffer.allocate(distCoe.length * 8);
+        for(double d : distCoe) {
+            bdist.putDouble(d);
+        }
+
+        Mat cameraMat = new Mat(1,9,6,bcam);
+        cameraMat.reshape(3,3);
+
+        Mat distCoeMat = new Mat(1,5,6 , bdist);
+
+        Mat newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat , distCoeMat , size , 1 ,size);
+
+        Mat dst = new Mat();
+        Calib3d.fisheye_undistortImage(pic , dst , cameraMat , distCoeMat , newCameraMat);
+
+        return "";
+
+
     }
 
 }
