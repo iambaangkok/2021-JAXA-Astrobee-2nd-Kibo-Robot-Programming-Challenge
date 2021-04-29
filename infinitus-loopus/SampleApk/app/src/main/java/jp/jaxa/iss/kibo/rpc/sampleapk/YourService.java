@@ -100,7 +100,7 @@ public class YourService extends KiboRpcService {
     }
 
     public Bitmap resizeImage(Mat sourceImage, int width, int height) {
-        Log.d("resizeImage[roi]: ", String.valueOf(width)) + String.valueOf(height));
+        Log.d("resizeImage[roi]: ", String.valueOf(width)+ String.valueOf(height));
         Size size = new Size(width, height);
         Imgproc.resize(sourceImage, sourceImage, size);
 
