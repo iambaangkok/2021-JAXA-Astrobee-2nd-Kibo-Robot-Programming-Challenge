@@ -46,34 +46,38 @@ public class YourService extends KiboRpcService {
         api.startMission();
 
         // move to point A (11.21, -9.8, 4.79, 0) quaternion A (0, 0, -0.707, 0.707)
-        moveToWrapper(11.21, -9.8, 4.79, 0, 0, -0.707, 0.707);
+        moveToWrapper(11.21, -9.8, 4.79, 0, 0, -0.707, 0.707, 1, 5);
 
         // scan QR Code to get point A' (qrData[0], qrData[1], qrData[2]) quaternion A' (0, 0, -0.707, 0.707) KOZ pattern (qrData[3])
         double[] qrData = readQRCode(11.21, -9.8, 4.79, 0, 0, -0.707, 0.707, 1);
-        moveToWrapper(qrData[0], qrData[1], qrData[2],0, 0, -0.707, 0.707);
+        moveToWrapper(qrData[0], qrData[1], qrData[2],0, 0, -0.707, 0.707, 2, 5);
 
         api.reportMissionCompletion();
     }
 
     private void moveToWrapper(double px, double py, double pz,
                                double qx, double qy, double qz,
-                               double qw){
+                               double qw, int moveNumber, int loopMax){
+        Log.d("moveToWrapper[moveNumber]: ", String.valueOf(moveNumber));
 
-        final int LOOP_MAX = 5;
         final Point point = new Point(px, py, pz);
         final Quaternion quaternion = new Quaternion((float)qx, (float)qy,
                                                      (float)qz, (float)qw);
 
         Result result = api.moveTo(point, quaternion, true);
 
-        int loopCounter = 0;
+        int loopCounter = 1;
+
         while(!result.hasSucceeded() || loopCounter < LOOP_MAX){
+            Log.d("moveToWrapper[loopCounter]: ", String.valueOf(loopCounter));
             result = api.moveTo(point, quaternion, true);
             ++loopCounter;
         }
+        return;
     }
 
     private void setFlashOn(boolean status){
+        Log.d("setFlashOn[status]: ", String.valueOf(status));
         if(status == true){
             api.flashlightControlFront(1f);
 
@@ -85,16 +89,18 @@ public class YourService extends KiboRpcService {
         }else{
             api.flashlightControlFront(0f);
         }
+        return;
     }
 
     private void cropImage(Mat sourceImage, Mat targetMat, Rect roi){
+        Log.d("cropImage[roi]: ", String.valueOf(roi));
         Mat croppedImage = new Mat(sourceImage,roi);
         croppedImage.copyTo(targetMat);
         return;
     }
 
-    public Bitmap resizeImage(Mat sourceImage, int width, int height)
-    {
+    public Bitmap resizeImage(Mat sourceImage, int width, int height) {
+        Log.d("resizeImage[roi]: ", String.valueOf(width)) + String.valueOf(height));
         Size size = new Size(width, height);
         Imgproc.resize(sourceImage, sourceImage, size);
 
@@ -104,6 +110,7 @@ public class YourService extends KiboRpcService {
     }
 
     private Mat undistortImage(Mat sourceImage, Rect roi){
+        Log.d("undistortImage[status]: ", "start");
         double[][] navCamIntrinsics = api.getNavCamIntrinsics();
 
         Mat cameraMat = new Mat();
@@ -132,7 +139,7 @@ public class YourService extends KiboRpcService {
             long start_time = SystemClock.elapsedRealtime();
 
             // stabilize
-            moveToWrapper(px, py, pz, qx, qy, qz, qw);
+            moveToWrapper(px, py, pz, qx, qy, qz, qw, -1, 3);
 
             // get nav cam pic
             setFlashOn(true);
@@ -150,6 +157,7 @@ public class YourService extends KiboRpcService {
             Bitmap bitmap = resizeImage(croppedPic, 2000, 2000*roi.height/roi.width);
 
             // scan QR
+            Log.d("QR[status]:", " scanning QR");
             int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
             bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
 
