@@ -1,17 +1,19 @@
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
-import org.opencv.calib3d.Calib3d;
-import org.opencv.core.Mat;
-import org.opencv.calib3d.Calib3d.*;
-import org.opencv.core.Size;
+import android.util.Log;
 
-import java.nio.ByteBuffer;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.objdetect.QRCodeDetector;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
 
 import gov.nasa.arc.astrobee.Result;
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
+
+import static android.content.ContentValues.TAG;
 
 /**
  * Class meant to handle commands from the Ground Data System and execute them in Astrobee
@@ -24,17 +26,15 @@ public class YourService extends KiboRpcService {
         api.startMission();
 
         // astrobee is undocked and the mission starts
-        moveToWrapper(11.71, -9.53, 5.35, 0, 0, 0, 1);
-        String contents = QR();
-        // irradiate the laser
-        api.laserControl(true);
+        //move(11.71, -9.53, 5.35, 0, 0, 0, 1);
+        Point point = new Point(11.21, -9.8, 4.79);
+        Quaternion quaternion = new Quaternion((float)0, (float)0,(float)0, (float)1);
 
-        // take snapshots9
-        api.takeSnapshot();
-
-        // move to the rear of Bay7
-        moveToWrapper(10.275, -10.314, 4.295, 0, -0.7071068, 0, 0.7071068);
-
+        api.moveTo(point, quaternion, true);
+/*
+        String contents = readQR();
+        api.sendDiscoveredQR(contents);
+*/
         // Send mission completion
         api.reportMissionCompletion();
     }
@@ -51,11 +51,11 @@ public class YourService extends KiboRpcService {
 
     // You can add your method
 
-    private void moveToWrapper(double pos_x, double pos_y, double pos_z,
+    public void move(double pos_x, double pos_y, double pos_z,
                                double qua_x, double qua_y, double qua_z,
                                double qua_w){
 
-        final int LOOP_MAX = 3;
+        final int LOOP_MAX = 5;
         final Point point = new Point(pos_x, pos_y, pos_z);
         final Quaternion quaternion = new Quaternion((float)qua_x, (float)qua_y,
                                                      (float)qua_z, (float)qua_w);
@@ -69,38 +69,34 @@ public class YourService extends KiboRpcService {
         }
     }
 
-    private String QR(){
-
-        Mat pic = api.getMatNavCam();
-        Size size = pic.size();
+    public Mat undistortPic(Mat src){
+        Mat dst = new Mat(1280,960,CvType.CV_8UC1);
         double[][] NavCam = api.getNavCamIntrinsics();
         double[] camera = NavCam[0];
         double[] distCoe = NavCam[1];
 
-        ByteBuffer bcam = ByteBuffer.allocate(camera.length * 8);
-        for(double d : camera) {
-            bcam.putDouble(d);
-        }
+        Mat cameraMat = new Mat(3,3, CvType.CV_64F);
+        cameraMat.put(0,0,camera);
 
-        ByteBuffer bdist = ByteBuffer.allocate(distCoe.length * 8);
-        for(double d : distCoe) {
-            bdist.putDouble(d);
-        }
+        Mat distCoeMat = new Mat(1,5,CvType.CV_64F );
+        distCoeMat.put(0,0,distCoe);
 
-        Mat cameraMat = new Mat(1,9,6,bcam);
-        cameraMat.reshape(3,3);
-
-        Mat distCoeMat = new Mat(1,5,6 , bdist);
-
-        Mat newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat , distCoeMat , size , 1 ,size);
-
-        Mat dst = new Mat();
-        Calib3d.fisheye_undistortImage(pic , dst , cameraMat , distCoeMat , newCameraMat);
-
-        return "";
-
-
+        Imgproc.undistort(src , dst , cameraMat , distCoeMat);
+        return dst;
     }
 
+    public String readQR(){
+        String content = "";
+        Mat pic = undistortPic(api.getMatNavCam());
+        QRCodeDetector detector = new QRCodeDetector();
+        int loopCounter = 0;
+        final int LOOP_MAX = 5;
+        while( content.isEmpty() || loopCounter < LOOP_MAX){
+            content = detector.detectAndDecode(pic);
+            loopCounter++;
+        }
+        Log.i(TAG, "readQR: " + content);
+        return content;
+    }
 }
 
