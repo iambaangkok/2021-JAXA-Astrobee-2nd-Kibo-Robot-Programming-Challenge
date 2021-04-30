@@ -26,15 +26,15 @@ public class YourService extends KiboRpcService {
         api.startMission();
 
         // astrobee is undocked and the mission starts
-        //move(11.71, -9.53, 5.35, 0, 0, 0, 1);
+        // move(11.71, -9.53, 5.35, 0, 0, 0, 1);
         Point point = new Point(11.21, -9.8, 4.79);
-        Quaternion quaternion = new Quaternion((float)0, (float)0,(float)0, (float)1);
+        Quaternion quaternion = new Quaternion(0f, 0f,-0.707f, 0.707f);
 
         api.moveTo(point, quaternion, true);
-/*
+
         String contents = readQR();
         api.sendDiscoveredQR(contents);
-*/
+
         // Send mission completion
         api.reportMissionCompletion();
     }
@@ -63,15 +63,14 @@ public class YourService extends KiboRpcService {
         Result result = api.moveTo(point, quaternion, true);
 
         int loopCounter = 0;
-        while(!result.hasSucceeded() || loopCounter < LOOP_MAX){
+        while(!result.hasSucceeded() && loopCounter < LOOP_MAX){
             result = api.moveTo(point, quaternion, true);
             ++loopCounter;
         }
     }
 
-    public Mat undistortPic(Mat src){
+    public Mat undistortPic(Mat src , double[][] NavCam){
         Mat dst = new Mat(1280,960,CvType.CV_8UC1);
-        double[][] NavCam = api.getNavCamIntrinsics();
         double[] camera = NavCam[0];
         double[] distCoe = NavCam[1];
 
@@ -82,16 +81,18 @@ public class YourService extends KiboRpcService {
         distCoeMat.put(0,0,distCoe);
 
         Imgproc.undistort(src , dst , cameraMat , distCoeMat);
+
         return dst;
     }
 
     public String readQR(){
         String content = "";
-        Mat pic = undistortPic(api.getMatNavCam());
+        Mat pic = undistortPic(api.getMatNavCam() , api.getNavCamIntrinsics());
         QRCodeDetector detector = new QRCodeDetector();
+        content = detector.detectAndDecode(pic);
         int loopCounter = 0;
         final int LOOP_MAX = 5;
-        while( content.isEmpty() || loopCounter < LOOP_MAX){
+        while( content.isEmpty() && loopCounter < LOOP_MAX){
             content = detector.detectAndDecode(pic);
             loopCounter++;
         }
