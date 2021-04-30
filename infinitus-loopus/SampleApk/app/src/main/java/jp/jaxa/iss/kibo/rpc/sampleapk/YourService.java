@@ -115,22 +115,32 @@ public class YourService extends KiboRpcService {
     private Mat undistortImage(Mat sourceImage, Rect roi){
         Log.d("undistortImage[status]: ", "start");
         double[][] navCamIntrinsics = api.getNavCamIntrinsics();
-        Log.d("undistortImage[status]: ", "got navCamIntrinsics");
+        Log.d("undistortImage[status]: ", "got navCamIntrinsics " + navCamIntrinsics[0].toString() + " " + navCamIntrinsics[1].toString());
         
         Mat cameraMat = new Mat();
         cameraMat.put(3, 3, navCamIntrinsics[0]);
-        Log.d("undistortImage[status]: ", "cameraMat put");
+        Log.d("undistortImage[status]: ", "cameraMat put " + cameraMat.toString());
 
         Mat distortionCoeff = new Mat();
         distortionCoeff.put(1,5,navCamIntrinsics[1]);
-        Log.d("undistortImage[status]: ", "distortCoeff put");
+        Log.d("undistortImage[status]: ", "distortCoeff put " + distortionCoeff.toString());
 
-        Mat newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat,distortionCoeff,sourceImage.size(),1, sourceImage.size(), roi);
-        Log.d("undistortImage[status]: ", "got optimalNewCamMat");
-
+        int test = 2;
         Mat undistortedPic = new Mat();
-        Calib3d.fisheye_undistortImage(sourceImage,undistortedPic,cameraMat,distortionCoeff,newCameraMat);
-        Log.d("undistortImage[status]: ", "finished fisheye_undistort");
+
+        Log.d("undistortImage[sourceImage.size()]: ", sourceImage.size().toString());
+        if(test == 1){
+            Mat newCameraMat = new Mat();
+            newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat, distortionCoeff, sourceImage.size(), 1, sourceImage.size(), roi);
+            Log.d("undistortImage[status]: ", "got optimalNewCamMat");
+            Log.d("undistortImage[status]: ", "got optimalNewCamMat " + newCameraMat.toString());
+
+            Calib3d.fisheye_undistortImage(sourceImage,undistortedPic,cameraMat,distortionCoeff,newCameraMat);
+            Log.d("undistortImage[status]: ", "finished fisheye_undistort");
+        }else if(test == 2){
+            Imgproc.undistort(sourceImage, undistortedPic, cameraMat, distortionCoeff);
+            Log.d("undistortImage[status]: ", "finished Imgproc.undistort");
+        }
 
         return undistortedPic;
     }
