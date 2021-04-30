@@ -8,6 +8,7 @@ import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.core.Rect;
 import org.opencv.calib3d.Calib3d;
+import org.opencv.objdetect.QRCodeDetector;
 // opencv library
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,7 +34,7 @@ public class Main extends Application {
 		
 		System.out.println("[image]: "+ "loading");
 		Mat image = new Mat(); 
-		image = Imgcodecs.imread("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\apigetMatNavCam.png", Imgcodecs.IMREAD_GRAYSCALE);
+		image = Imgcodecs.imread("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\PointAQR.PNG", Imgcodecs.IMREAD_GRAYSCALE);
 		//System.out.println("[image]: "+ image.dump());
 		Rect roi = new Rect(1,1,1,1);
 		Mat undistortedPic = undistort(image,roi);
@@ -44,13 +45,57 @@ public class Main extends Application {
         cropImage(undistortedPic, croppedPic, roi);
         Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage.png", croppedPic);
         
+        Mat croppedPic2 = new Mat();
+        cropImagePercent(croppedPic, croppedPic2, 30, 50, 60);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage2.png", croppedPic2);
+        
+        Mat resizedImage = new Mat();
+        Size sz = new Size(1920,1440);
+        Imgproc.resize( croppedPic2, resizedImage, sz );
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\resizedImage.png", resizedImage);
+        
+        String qrData = readQR(croppedPic);
+        
         
 		//launch(args);
 	}
 	
+	public static String readQR(Mat pic){
+		System.out.println("readQR[status]: " + " start");
+        String content = "";
+        QRCodeDetector detector = new QRCodeDetector();
+        int loopCounter = 0;
+        final int LOOP_MAX = 5;
+        while( content.isEmpty() && loopCounter < LOOP_MAX){
+        	System.out.println("readQR[loopCounter]: " + loopCounter);
+            content = detector.detectAndDecode(pic);
+            loopCounter++;
+        }
+        System.out.println("readQR[content]: " + content);
+        return content;
+    }
+
+	
 	private static void cropImage(Mat sourceImage, Mat targetMat, Rect roi){
         System.out.println("cropImage[roi]: "+ String.valueOf(roi));
         Mat croppedImage = new Mat(sourceImage,roi);
+        croppedImage.copyTo(targetMat);
+        return;
+    }
+	
+	private static void cropImagePercent(Mat sourceImage, Mat targetMat, double percent, double xPercent, double yPercent){
+        System.out.println("cropImagePercent[status]: " + "start");
+        
+        double width = sourceImage.size().width;
+        double height = sourceImage.size().height;
+        double newWidth = width*percent/100;
+        double newHeight = height*percent/100;
+        double newX = width*xPercent/100;
+        double newY = height*yPercent/100;
+        
+        Rect newROI = new Rect((int)newX,(int)newY,(int)newWidth,(int)newHeight);
+        
+        Mat croppedImage = new Mat(sourceImage,newROI);
         croppedImage.copyTo(targetMat);
         return;
     }
