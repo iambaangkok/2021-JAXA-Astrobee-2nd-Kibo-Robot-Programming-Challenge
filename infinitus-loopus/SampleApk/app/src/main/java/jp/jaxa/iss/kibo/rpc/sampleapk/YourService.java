@@ -28,6 +28,7 @@ import static org.opencv.android.Utils.matToBitmap;
 import org.opencv.calib3d.Calib3d;
 // opencv library
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 // java library
@@ -115,29 +116,28 @@ public class YourService extends KiboRpcService {
     private Mat undistortImage(Mat sourceImage, Rect roi){
         Log.d("undistortImage[status]: ", "start");
         double[][] navCamIntrinsics = api.getNavCamIntrinsics();
-        Log.d("undistortImage[status]: ", "got navCamIntrinsics " + navCamIntrinsics[0].toString() + " " + navCamIntrinsics[1].toString());
+        Log.d("undistortImage[status]: ", "got navCamIntrinsics " + Arrays.deepToString(navCamIntrinsics));
         
-        Mat cameraMat = new Mat();
+        Mat cameraMat = new Mat(3, 3, CvType.CV_32FC1);
         cameraMat.put(3, 3, navCamIntrinsics[0]);
-        Log.d("undistortImage[status]: ", "cameraMat put " + cameraMat.toString());
+        Log.d("undistortImage[status]: ", "cameraMat put " + cameraMat.toString() + " " + cameraMat.dump());
 
-        Mat distortionCoeff = new Mat();
+        Mat distortionCoeff = new Mat(1, 5, CvType.CV_32FC1);
         distortionCoeff.put(1,5,navCamIntrinsics[1]);
-        Log.d("undistortImage[status]: ", "distortCoeff put " + distortionCoeff.toString());
+        Log.d("undistortImage[status]: ", "distortCoeff put " + distortionCoeff.toString() + " " + distortionCoeff.dump());
 
-        int test = 2;
-        Mat undistortedPic = new Mat();
+        int test = 1;
+        Mat undistortedPic = new Mat(1280, 960, CvType.CV_8UC1);
 
         Log.d("undistortImage[sourceImage.size()]: ", sourceImage.size().toString());
         if(test == 1){
-            Mat newCameraMat = new Mat();
-            newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat, distortionCoeff, sourceImage.size(), 1, sourceImage.size(), roi);
+            Mat newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat, distortionCoeff, sourceImage.size(), 1, sourceImage.size(), roi);
             Log.d("undistortImage[status]: ", "got optimalNewCamMat");
-            Log.d("undistortImage[status]: ", "got optimalNewCamMat " + newCameraMat.toString());
+            Log.d("undistortImage[status]: ", "got optimalNewCamMat " + newCameraMat.dump());
 
             Calib3d.fisheye_undistortImage(sourceImage,undistortedPic,cameraMat,distortionCoeff,newCameraMat);
             Log.d("undistortImage[status]: ", "finished fisheye_undistort");
-        }else if(test == 2){
+        }else if(test == 2){ //This method crashes the program
             Imgproc.undistort(sourceImage, undistortedPic, cameraMat, distortionCoeff);
             Log.d("undistortImage[status]: ", "finished Imgproc.undistort");
         }
