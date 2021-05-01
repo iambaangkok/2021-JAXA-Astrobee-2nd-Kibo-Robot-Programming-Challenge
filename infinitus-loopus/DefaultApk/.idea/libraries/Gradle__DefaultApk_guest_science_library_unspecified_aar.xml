@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: DefaultApk:guest_science_library:unspecified@aar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.android/build-cache/4cd64bae24db3ac85df9a041804d0775312801f3/output/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/.android/build-cache/4cd64bae24db3ac85df9a041804d0775312801f3/output/res" />
+      <root url="file://$USER_HOME$/.android/build-cache/4cd64bae24db3ac85df9a041804d0775312801f3/output/AndroidManifest.xml" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="Gradle: DefaultApk:kibo_rpc_api:unspecified@aar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.android/build-cache/152c9ad8d94edd87e54e8a559d2a3e9416cb47d0/output/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/.android/build-cache/152c9ad8d94edd87e54e8a559d2a3e9416cb47d0/output/res" />
+      <root url="file://$USER_HOME$/.android/build-cache/152c9ad8d94edd87e54e8a559d2a3e9416cb47d0/output/AndroidManifest.xml" />
+      <root url="jar://$USER_HOME$/.android/build-cache/152c9ad8d94edd87e54e8a559d2a3e9416cb47d0/output/jars/libs/api-1.0-SNAPSHOT.jar!/" />
+      <root url="jar://$USER_HOME$/.android/build-cache/152c9ad8d94edd87e54e8a559d2a3e9416cb47d0/output/jars/libs/ff_msgs-0.0.0.jar!/" />
+      <root url="jar://$USER_HOME$/.android/build-cache/152c9ad8d94edd87e54e8a559d2a3e9416cb47d0/output/jars/libs/ros-1.0-SNAPSHOT.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

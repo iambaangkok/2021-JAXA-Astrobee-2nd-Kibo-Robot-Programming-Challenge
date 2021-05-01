@@ -1,11 +1,22 @@
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
+import android.graphics.Bitmap;
 import android.util.Log;
 
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.ChecksumException;
+import com.google.zxing.FormatException;
+import com.google.zxing.LuminanceSource;
+import com.google.zxing.MultiFormatReader;
+import com.google.zxing.NotFoundException;
+import com.google.zxing.RGBLuminanceSource;
+import com.google.zxing.Reader;
+import com.google.zxing.common.HybridBinarizer;
+
+import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
-import org.opencv.objdetect.QRCodeDetector;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
 
@@ -22,15 +33,12 @@ import static android.content.ContentValues.TAG;
 public class YourService extends KiboRpcService {
     @Override
     protected void runPlan1(){
-        // astrobee is undocked and the mission starts
+
         api.startMission();
-
-        // astrobee is undocked and the mission starts
         // move(11.71, -9.53, 5.35, 0, 0, 0, 1);
-        Point point = new Point(11.21, -9.8, 4.79);
-        Quaternion quaternion = new Quaternion(0f, 0f,-0.707f, 0.707f);
 
-        api.moveTo(point, quaternion, true);
+        move(11.21,-9.8,4.79,0,0,-0.707,0.707);
+        Log.i("Check" , "move successfully");
 
         String contents = readQR();
         api.sendDiscoveredQR(contents);
@@ -60,7 +68,7 @@ public class YourService extends KiboRpcService {
         final Quaternion quaternion = new Quaternion((float)qua_x, (float)qua_y,
                                                      (float)qua_z, (float)qua_w);
 
-        Result result = api.moveTo(point, quaternion, true);
+        gov.nasa.arc.astrobee.Result result = api.moveTo(point, quaternion, true);
 
         int loopCounter = 0;
         while(!result.hasSucceeded() && loopCounter < LOOP_MAX){
@@ -85,19 +93,28 @@ public class YourService extends KiboRpcService {
         return dst;
     }
 
-    public String readQR(){
-        String content = "";
+    public String readQR() {
+        String contents = null;
+
         Mat pic = undistortPic(api.getMatNavCam() , api.getNavCamIntrinsics());
-        QRCodeDetector detector = new QRCodeDetector();
-        content = detector.detectAndDecode(pic);
-        int loopCounter = 0;
-        final int LOOP_MAX = 5;
-        while( content.isEmpty() && loopCounter < LOOP_MAX){
-            content = detector.detectAndDecode(pic);
-            loopCounter++;
-        }
-        Log.i(TAG, "readQR: " + content);
-        return content;
+
+        Bitmap bMap = Bitmap.createBitmap(pic.width(), pic.height(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(pic, bMap);
+
+        int[] intArray = new int[bMap.getWidth()*bMap.getHeight()];
+        bMap.getPixels(intArray, 0, bMap.getWidth(), 0, 0, bMap.getWidth(), bMap.getHeight());
+
+        LuminanceSource source = new RGBLuminanceSource(bMap.getWidth(), bMap.getHeight(), intArray);
+        BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
+
+        Reader reader = new MultiFormatReader();
+        try {
+            com.google.zxing.Result result = reader.decode(bitmap);
+            contents = result.getText();
+        } catch (NotFoundException e) { e.printStackTrace(); }
+        catch (ChecksumException e) { e.printStackTrace(); }
+        catch (FormatException e) { e.printStackTrace(); }
+        return contents;
     }
 }
 

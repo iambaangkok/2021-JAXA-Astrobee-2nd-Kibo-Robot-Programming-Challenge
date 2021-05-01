@@ -1,3 +1,7 @@
 DarkTXYZ - TEST#0 : Start from this
 
 DarkTXYZ - TEST#1 : Fixed Orientation
+
+DarkTXYZ - TEST#1.1 : Figure out how to teach kibo not to stand still
+
+DarkTXYZ - TEST#1.2 : Still figure out 
