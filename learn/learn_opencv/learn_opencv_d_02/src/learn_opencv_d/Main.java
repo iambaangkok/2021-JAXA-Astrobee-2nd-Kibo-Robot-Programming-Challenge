@@ -1,5 +1,11 @@
 package learn_opencv_d;
 
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.LuminanceSource;
+import com.google.zxing.RGBLuminanceSource;
+import com.google.zxing.common.HybridBinarizer;
+import com.google.zxing.qrcode.QRCodeReader;
+// zxing library
 import org.opencv.core.Core;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.core.CvType;
@@ -22,8 +28,8 @@ import javafx.stage.WindowEvent;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.fxml.FXMLLoader;
+// javafx library
 
-// OpenCV Basics	
 
 public class Main extends Application {
 	
@@ -34,7 +40,7 @@ public class Main extends Application {
 		
 		System.out.println("[image]: "+ "loading");
 		Mat image = new Mat(); 
-		image = Imgcodecs.imread("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\PointAQR.PNG", Imgcodecs.IMREAD_GRAYSCALE);
+		image = Imgcodecs.imread("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\PointAQRIlluminated0.5.PNG", Imgcodecs.IMREAD_GRAYSCALE);
 		//System.out.println("[image]: "+ image.dump());
 		Rect roi = new Rect(1,1,1,1);
 		Mat undistortedPic = undistort(image,roi);
@@ -54,7 +60,52 @@ public class Main extends Application {
         Imgproc.resize( croppedPic2, resizedImage, sz );
         Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\resizedImage.png", resizedImage);
         
-        String qrData = readQR(croppedPic);
+        Mat adjustedImage = new Mat();
+        double contrast = 1; 
+        int brightness = -100;
+        resizedImage.convertTo(adjustedImage, -1, contrast, brightness);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\adjustedImage.png", adjustedImage);
+        
+        Mat sharpenedImage = new Mat();
+        //adjustedImage.copyTo(shapenedImage);
+        Mat blurredImage = new Mat();
+        int kernelSize = 19;
+        Imgproc.GaussianBlur(adjustedImage, blurredImage, new Size(kernelSize, kernelSize), 30);
+        Core.addWeighted(adjustedImage, 1.5, blurredImage, -0.5, 0, sharpenedImage);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\blurredImage.png", blurredImage);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\shapenedImage.png", sharpenedImage);
+        
+        Mat croppedPic3 = new Mat();
+        cropImagePercent(sharpenedImage, croppedPic3, 50, 10, 20);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage3.png", croppedPic3);
+        
+        /*Mat croppedPic4 = new Mat();
+        cropImage(croppedPic3, croppedPic4, new Rect(0,0,));
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage4.png", croppedPic4);*/
+        
+        
+        
+        Mat testQR = new Mat(); 
+		testQR = Imgcodecs.imread("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\testQR.PNG", Imgcodecs.IMREAD_GRAYSCALE);
+        String qrData = readQR(croppedPic3);
+        
+        /*try
+        {
+            com.google.zxing.Result result = new QRCodeReader().decode(bitmapToRead);
+            qrData = result.getText();
+            Log.d("QR[status]:", " Detected");
+
+            // Format : "p":<pattern>,"x":<x>,"y":<y>,"z":<z>
+            Scanner s = new Scanner(qrData);
+            kozPattern = s.nextInt();
+            result_x = s.nextDouble();
+            result_y = s.nextDouble();
+            result_z = s.nextDouble();
+        }
+        catch (Exception e)
+        {
+            Log.d("QR[status]:", " Not detected");
+        }*/
         
         
 		//launch(args);
