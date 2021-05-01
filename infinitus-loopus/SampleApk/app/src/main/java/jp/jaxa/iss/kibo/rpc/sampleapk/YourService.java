@@ -13,12 +13,14 @@ import android.util.Log;
 // android library
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.LuminanceSource;
+import com.google.zxing.MultiFormatReader;
 import com.google.zxing.RGBLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.qrcode.QRCodeReader;
 // zxing library
 import org.opencv.aruco.Aruco;
 import org.opencv.aruco.Dictionary;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
@@ -232,17 +234,43 @@ public class YourService extends KiboRpcService {
             Mat croppedPic2 = new Mat();
             cropImagePercent(croppedPic, croppedPic2, 30, 50, 60);
 
-            // enlarge image for easier scanning
+            Log.d("QR[status]:", " enlarging");
+            Mat resizedImage = new Mat();
+            Size sz = new Size(1920,1440);
+            Imgproc.resize( croppedPic2, resizedImage, sz );
+
+            Log.d("QR[status]:", " adjusting contrast/brightness");
+            Mat adjustedImage = new Mat();
+            double contrast = 1;
+            int brightness = -100;
+            resizedImage.convertTo(adjustedImage, -1, contrast, brightness);
+
+            Log.d("QR[status]:", " sharpening");
+            Mat sharpenedImage = new Mat();
+            Mat blurredImage = new Mat();
+            int kernelSize = 19;
+            Imgproc.GaussianBlur(adjustedImage, blurredImage, new Size(kernelSize, kernelSize), 30);
+            Core.addWeighted(adjustedImage, 1.5, blurredImage, -0.5, 0, sharpenedImage);
+
+            Log.d("QR[status]:", " 3rd cropping");
+            Mat croppedPic3 = new Mat();
+            cropImagePercent(sharpenedImage, croppedPic3, 50, 10, 20);
+
+
+
+            // convert to bitmap for zxing
+            Mat matForBitmap = new Mat();
+            croppedPic3.copyTo(matForBitmap);
             Log.d("QR[status]:", " doing bitmap stuff");
-            Bitmap bitmapFromMat = Bitmap.createBitmap((int)croppedPic2.size().width, (int)croppedPic2.size().height, Bitmap.Config.ARGB_8888);
-            Utils.matToBitmap(croppedPic2,bitmapFromMat);
+            Size size = new Size((int)matForBitmap.size().width, (int)matForBitmap.size().height);
+            Imgproc.resize(matForBitmap, matForBitmap, size);
 
             Log.d("QR[status]:", " doing bitmap stuff2");
-            Bitmap bitmap = Bitmap.createBitmap(bitmapFromMat, 480, 453, 489, 515);
+            Bitmap bitmap = Bitmap.createBitmap((int)matForBitmap.size().width, (int)matForBitmap.size().height, Bitmap.Config.ARGB_8888);
+            matToBitmap(matForBitmap, bitmap, false);
 
-            Log.d("QR[status]:", " resizingMat");
-            Mat resizedImage = new Mat();
-            resizedImage = resizeImage(croppedPic2, 1920, 1440);
+            Log.d("QR[matForBitmap.size()]:", matForBitmap.size().toString());
+
             // scan QR
             int test = 1;
             //if(test == 1){
@@ -259,15 +287,21 @@ public class YourService extends KiboRpcService {
                 Log.d("QR[status]:", " scanning QR zxing");
                 try
                 {
-                    com.google.zxing.Result result = new QRCodeReader().decode(bitmapToRead);
-                    qrData = result.getText();
+                    Log.d("QR[status]:", " scanning QR zxing try");
+                    com.google.zxing.Result result = new MultiFormatReader().decode(bitmapToRead);
                     Log.d("QR[status]:", " Detected");
+                    qrData = result.getText();
+                    Log.d("QR[status]:", " Detecteddd");
 
                     // Format : "p":<pattern>,"x":<x>,"y":<y>,"z":<z>
                     Scanner s = new Scanner(qrData);
+                    Log.d("QR[status]:", " zxing getting koz");
                     kozPattern = s.nextInt();
+                    Log.d("QR[status]:", " zxing getting x");
                     result_x = s.nextDouble();
+                    Log.d("QR[status]:", " zxing getting y");
                     result_y = s.nextDouble();
+                    Log.d("QR[status]:", " zxing getting z");
                     result_z = s.nextDouble();
                 }
                 catch (Exception e)
@@ -278,16 +312,19 @@ public class YourService extends KiboRpcService {
                 Log.d("QR[status]:", " scanning QR opencv");
                 QRCodeDetector detector = new QRCodeDetector();
                 Log.d("QR[loopCounter]: ", String.valueOf(loopCount));
-                String result = detector.detectAndDecode(resizedImage);
+                String result = detector.detectAndDecode(croppedPic3);
                 Log.d("QR[qrData]: ", qrData);
                 if(result != null){
                     Log.d("QR[status]:", " Detected");
                     qrData = result;
                     Scanner s = new Scanner(qrData);
+                    Log.d("QR[status]:", " opencv getting koz");
                     kozPattern = s.nextInt();
+                    Log.d("QR[status]:", " opencv getting x");
                     result_x = s.nextDouble();
+                    Log.d("QR[status]:", " opencv getting y");
                     result_y = s.nextDouble();
-                    result_z = s.nextDouble();
+                    Log.d("QR[status]:", " opencv getting z");
                 //}
             }
 
