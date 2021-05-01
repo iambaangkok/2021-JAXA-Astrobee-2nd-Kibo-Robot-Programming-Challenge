@@ -83,15 +83,19 @@ public class YourService extends KiboRpcService {
         Log.d("setFlashOn[status]: ", String.valueOf(status));
         if(status == true){
             api.flashlightControlFront(0.5f);
-
+            Log.d("setFlashOn[status]: ", "brightness = " + String.valueOf(0.5f));
             try{
+                Log.d("setFlashOn[status]: ", "sleeping");
                 Thread.sleep(1000);
             }catch (InterruptedException e){
+                Log.d("setFlashOn[status]: ", "interrupted");
                 e.printStackTrace();
             }
         }else{
             api.flashlightControlFront(0f);
+            Log.d("setFlashOn[status]: ", "off");
         }
+        Log.d("setFlashOn[status]: ", "done");
         return;
     }
 
@@ -168,7 +172,7 @@ public class YourService extends KiboRpcService {
 
         row = 0; col = 0;
         Mat distortionCoeff = new Mat(1, 5, CvType.CV_32FC1);
-        distortionCoeff.put(0,0,navCamIntrinsics[1]);
+        distortionCoeff.put(row,col,navCamIntrinsics[1]);
         Log.d("undistortImage[status]: ", "distortCoeff put " + distortionCoeff.toString() + " " + distortionCoeff.dump());
 
         int test = 1;
@@ -206,42 +210,53 @@ public class YourService extends KiboRpcService {
             long start_time = SystemClock.elapsedRealtime();
 
             // stabilize
+            Log.d("QR[status]:", " stabilizing");
             moveToWrapper(px, py, pz, qx, qy, qz, qw, -1, 3);
 
             // get nav cam pic
+            Log.d("QR[status]:", " getting nav cam image");
             setFlashOn(true);
             Mat pic = api.getMatNavCam();
 
-            // undistort fisheye
+            // undistort
+            Log.d("QR[status]:", " undistorting");
             Rect roi = new Rect();
             Mat undistortedPic = undistortImage(pic,roi);
 
             // crop image to ROI
+            Log.d("QR[status]:", " 1st cropping");
             Mat croppedPic = new Mat();
             cropImage(undistortedPic, croppedPic, roi);
 
+            Log.d("QR[status]:", " 2nd cropping");
             Mat croppedPic2 = new Mat();
             cropImagePercent(croppedPic, croppedPic2, 30, 50, 60);
 
             // enlarge image for easier scanning
+            Log.d("QR[status]:", " doing bitmap stuff");
             Bitmap bitmapFromMat = Bitmap.createBitmap((int)croppedPic2.size().width, (int)croppedPic2.size().height, Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(croppedPic2,bitmapFromMat);
 
+            Log.d("QR[status]:", " doing bitmap stuff2");
             Bitmap bitmap = Bitmap.createBitmap(bitmapFromMat, 480, 453, 489, 515);
+
+            Log.d("QR[status]:", " resizingMat");
             Mat resizedImage = new Mat();
             resizedImage = resizeImage(croppedPic2, 1920, 1440);
-
             // scan QR
-            Log.d("QR[status]:", " scanning QR");
             int test = 1;
-            if(test == 1){
+            //if(test == 1){
 
+                Log.d("QR[status]:", " doing bitmap stuff3");
                 int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
                 bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
-
+                Log.d("QR[status]:", " getting luminanceSource");
                 LuminanceSource source = new RGBLuminanceSource(bitmap.getWidth(), bitmap.getHeight(), pixels);
+                Log.d("QR[status]:", " got luminanceSource");
                 BinaryBitmap bitmapToRead = new BinaryBitmap(new HybridBinarizer(source));
                 Log.d("QR[status]:", " got bitmapToRead");
+
+                Log.d("QR[status]:", " scanning QR zxing");
                 try
                 {
                     com.google.zxing.Result result = new QRCodeReader().decode(bitmapToRead);
@@ -259,18 +274,21 @@ public class YourService extends KiboRpcService {
                 {
                     Log.d("QR[status]:", " Not detected");
                 }
-            }else if(test == 2){
+            //}else if(test == 2){
+                Log.d("QR[status]:", " scanning QR opencv");
                 QRCodeDetector detector = new QRCodeDetector();
                 Log.d("QR[loopCounter]: ", String.valueOf(loopCount));
-                qrData = detector.detectAndDecode(pic);
+                String result = detector.detectAndDecode(resizedImage);
                 Log.d("QR[qrData]: ", qrData);
-                if(qrData != null){
+                if(result != null){
+                    Log.d("QR[status]:", " Detected");
+                    qrData = result;
                     Scanner s = new Scanner(qrData);
                     kozPattern = s.nextInt();
                     result_x = s.nextDouble();
                     result_y = s.nextDouble();
                     result_z = s.nextDouble();
-                }
+                //}
             }
 
 
