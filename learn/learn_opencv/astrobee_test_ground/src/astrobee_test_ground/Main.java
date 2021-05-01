@@ -1,4 +1,4 @@
-package learn_opencv_d;
+package astrobee_test_ground;
 
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.LuminanceSource;
@@ -21,17 +21,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 // java library
-import javafx.application.Application;
-import javafx.event.EventHandler;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
-import javafx.scene.Scene;
-import javafx.scene.layout.BorderPane;
-import javafx.fxml.FXMLLoader;
-// javafx library
 
 
-public class Main extends Application {
+
+public class Main {
 	
 	public static void main(String[] args){
 		// load the native OpenCV library
@@ -84,21 +77,25 @@ public class Main extends Application {
         Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage4.png", croppedPic4);*/
         
         
-        Mat testQR = new Mat(); 
-		testQR = Imgcodecs.imread("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\testQR.PNG", Imgcodecs.IMREAD_GRAYSCALE);
-        String qrData = readQR(croppedPic3);
+        //Mat testQR = new Mat(); 
+		//testQR = Imgcodecs.imread("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\testQR.PNG", Imgcodecs.IMREAD_GRAYSCALE);
+        //String qrData = readQR(croppedPic3);
         
-        
-        Mat A = croppedPic3; //"image_addr" is the address of the image
+        String qrData = null;
+
+        Mat A = croppedPic3.clone();
         Mat C = A.clone();
-        A.convertTo(A, CvType.CV_32FC1); // New line added. 
-        int size = (int) (A.total() * A.channels());
-        int[] intArray = new int[(int)croppedPic3.size().width * (int)croppedPic3.size().height];
-        A.get(0, 0, intArray);
-        for (int i = 0; i < size; i++)
-        	intArray[i] = (intArray[i] / 2);  // no more casting required.
-        C.put(0, 0, intArray);
+        Size sizeA = A.size();
+        int size = (int)(sizeA.width*sizeA.height);
+        int[] intArray = new int[size];
         
+        for (int i = 0; i < sizeA.height; i++) {
+            for (int j = 0; j < sizeA.width; j++) {
+                double[] data = A.get(i, j);
+                intArray[(int)(sizeA.width*i + j)] = (int)data[0];
+            }
+		}
+ 
 
         LuminanceSource source = new RGBLuminanceSource((int)croppedPic3.size().width, (int)croppedPic3.size().height, intArray);
         BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
@@ -110,8 +107,8 @@ public class Main extends Application {
         	
             com.google.zxing.Result result = new QRCodeReader().decode(bitmap);
             qrData = result.getText();
-            System.out.println("QR[status]:" + " Detected");
-
+            System.out.println("QR[status]:" + " Detected " + qrData);
+            	
             // Format : "p":<pattern>,"x":<x>,"y":<y>,"z":<z>
             Scanner s = new Scanner(qrData);
             kozPattern = s.nextInt();
@@ -211,36 +208,6 @@ public class Main extends Application {
 	}
 	
 	
-	
-	//@Override
-	public void start(Stage primaryStage) {
-		/*try{
-			// load the FXML resource
-			FXMLLoader loader = new FXMLLoader(getClass().getResource("FirstFX.fxml"));
-			// store the root element so that the controllers can use it
-			BorderPane rootElement = (BorderPane) loader.load();
-			// create and style a scene
-			Scene scene = new Scene(rootElement, 800, 600);
-			scene.getStylesheets().add(getClass().getResource("application.css").toExternalForm());
-			// create the stage with the given title and the previously created
-			// scene
-			primaryStage.setTitle("JavaFX meets OpenCV");
-			primaryStage.setScene(scene);
-			// show the GUI
-			primaryStage.show();
-			
-			// set the proper behavior on closing the application
-			FXController controller = loader.getController();
-			primaryStage.setOnCloseRequest((new EventHandler<WindowEvent>() {
-				public void handle(WindowEvent we){
-					controller.setClosed();
-				}
-			}));
-		}
-		catch (Exception e){
-			e.printStackTrace();
-		}*/
-	}
 	
 	
 	
