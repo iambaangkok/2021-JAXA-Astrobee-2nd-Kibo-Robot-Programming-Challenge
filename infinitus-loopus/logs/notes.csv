@@ -4,3 +4,19 @@ test,2,test0002 test QR Scanning,-
 test,3,test0003 test QR scanning with more logging,can't find the line that cause the error
 test,4,test0004 added more logging,can't find the line that cause the error
 test,5,"test0005 new undistort method, more logging",Imgproc.undistort crashes the program
+test,6,-,-
+test,7,"test0007 back to old undistort method, adjusted logging",
+test,8,test0008 change camdisMat to CvType.CV_64FC1,problem was with mat.put
+test,9,test0009 scanning qr using imgproc.distort,imgproc.undistort works
+test,10,"test0010 crop more, resize, opencv qr reader",opencv qr reader doesn't work
+test,11,test0011 scan qr zxing,something broke after flashlight log
+test,12,"test0012 more logging, minor bug fix",program seems to crash around zxing
+test,13,test0013 more logging,Bitmap.createBitmap doesn't work
+test,14,,
+test,15,,
+test,16,,
+test,17,,
+test,18,,
+test,19,,
+test,20,,
+test,21,,
