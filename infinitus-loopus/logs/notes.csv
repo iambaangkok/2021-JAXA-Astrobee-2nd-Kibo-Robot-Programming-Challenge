@@ -22,7 +22,7 @@ test,20,add +time stamp on logs,-
 test,21,add +elapsedTime since start,-
 test,22,back to normalbitmap,took toolong
 test,23,test0022 but -sharpen -crop3 - crop4,took toolong
-test,24,,
+test,24,test0024 back to test0021 +hints,I plan to rewrite the program
 test,25,,
 test,26,,
 test,27,,
