@@ -5,11 +5,13 @@ import com.google.zxing.LuminanceSource;
 import com.google.zxing.RGBLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.qrcode.QRCodeReader;
+import com.google.zxing.DecodeHintType;
 // zxing library
 import org.opencv.core.Core;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfInt;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.core.Rect;
@@ -20,6 +22,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import java.util.HashMap;
+import java.util.Map;
 // java library
 
 
@@ -35,43 +39,64 @@ public class Main {
 		Mat image = new Mat(); 
 		image = Imgcodecs.imread("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\PointAQRIlluminated0.5.PNG", Imgcodecs.IMREAD_GRAYSCALE);
 		//System.out.println("[image]: "+ image.dump());
-		Rect roi = new Rect(1,1,1,1);
-		Mat undistortedPic = undistort(image,roi);
+		Rect roi = new Rect(0,0,(int)image.size().width,(int)image.size().height);
+		Mat undistortedPic = undistort(image,roi);//new Mat(); image.copyTo(undistortedPic);//undistort(image,roi);
 		Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\undistortedImage.png", undistortedPic);
 		System.out.println("[roi]: "+ roi.toString());
 		
-		Mat croppedPic = new Mat();
-        cropImage(undistortedPic, croppedPic, roi);
-        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage.png", croppedPic);
+		
+        cropImage(undistortedPic, undistortedPic, roi);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage.png", undistortedPic);
         
-        Mat croppedPic2 = new Mat();
-        cropImagePercent(croppedPic, croppedPic2, 30, 50, 60);
-        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage2.png", croppedPic2);
         
-        Mat resizedImage = new Mat();
+        cropImagePercent(undistortedPic, undistortedPic, 30, 50, 60);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage2.png", undistortedPic);
+        
+        
         Size sz = new Size(1920,1440);
-        Imgproc.resize( croppedPic2, resizedImage, sz );
-        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\resizedImage.png", resizedImage);
+        Imgproc.resize( undistortedPic, undistortedPic, sz );
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\resizedImage.png", undistortedPic);
         
-        Mat adjustedImage = new Mat();
+        
         double contrast = 1; 
-        int brightness = -100;
-        resizedImage.convertTo(adjustedImage, -1, contrast, brightness);
-        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\adjustedImage.png", adjustedImage);
+        int brightness = -30;
+        undistortedPic.convertTo(undistortedPic, -1, contrast, brightness);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\adjustedImage.png", undistortedPic);
         
-        Mat sharpenedImage = new Mat();
+        
         //adjustedImage.copyTo(shapenedImage);
         Mat blurredImage = new Mat();
         int kernelSize = 19;
-        Imgproc.GaussianBlur(adjustedImage, blurredImage, new Size(kernelSize, kernelSize), 30);
-        Core.addWeighted(adjustedImage, 1.5, blurredImage, -0.5, 0, sharpenedImage);
+        Imgproc.GaussianBlur(undistortedPic, blurredImage, new Size(kernelSize, kernelSize), 30);
+        Core.addWeighted(undistortedPic, 1.5, blurredImage, -0.5, 0, undistortedPic);
+        Core.addWeighted(undistortedPic, 1.5, blurredImage, -0.5, 0, undistortedPic);
+        Core.addWeighted(undistortedPic, 1.5, blurredImage, -0.5, 0, undistortedPic);
+        contrast = 1.1; 
+        brightness = 0;
+        //undistortedPic.convertTo(undistortedPic, -1, contrast, brightness);
         Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\blurredImage.png", blurredImage);
-        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\shapenedImage.png", sharpenedImage);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\shapenedImage.png", undistortedPic);
         
-        Mat croppedPic3 = new Mat();
-        cropImagePercent(sharpenedImage, croppedPic3, 50, 10, 20);
-        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage3.png", croppedPic3);
+        final Size sizeA = undistortedPic.size();
         
+        Rect roi2 = new Rect((int)(sizeA.width*0.08),(int)(sizeA.height*0.1),(int)(sizeA.width*0.6),(int)(sizeA.height*0.8));
+        cropImage(undistortedPic, undistortedPic, roi2);
+        
+        cropImagePercent(undistortedPic, undistortedPic, 50, 10, 20);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage3.png", undistortedPic);
+        
+        
+        /*blurredImage = new Mat();
+        Imgproc.GaussianBlur(undistortedPic, blurredImage, new Size(kernelSize, kernelSize), 30);
+        Core.addWeighted(undistortedPic, 1.5, blurredImage, -0.5, 0, undistortedPic);
+        blurredImage = new Mat();
+        Imgproc.GaussianBlur(undistortedPic, blurredImage, new Size(kernelSize, kernelSize), 30);
+        Core.addWeighted(undistortedPic, 1.5, blurredImage, -0.5, 0, undistortedPic);
+        blurredImage = new Mat();
+        Imgproc.GaussianBlur(undistortedPic, blurredImage, new Size(kernelSize, kernelSize), 30);
+        Core.addWeighted(undistortedPic, 1.5, blurredImage, -0.5, 0, undistortedPic);/*
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\blurredImage2.png", blurredImage);
+        Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\shapenedImage2.png", undistortedPic);
         /*Mat croppedPic4 = new Mat();
         cropImage(croppedPic3, croppedPic4, new Rect(0,0,));
         Imgcodecs.imwrite("D:\\GitHub\\JAXA-2nd-Kibo-RPC\\learn\\learn_opencv\\learn_opencv_d\\src\\croppedImage4.png", croppedPic4);*/
@@ -83,45 +108,67 @@ public class Main {
         
         String qrData = null;
 
-        Mat A = croppedPic3.clone();
-        Mat C = A.clone();
-        Size sizeA = A.size();
-        int size = (int)(sizeA.width*sizeA.height);
-        int[] intArray = new int[size];
         
-        for (int i = 0; i < sizeA.height; i++) {
+        
+        final Size sizeB = undistortedPic.size();
+        final int size = (int)(sizeB.width*sizeB.height);
+        byte[] bite = new byte[size];
+        int row = 0, col = 0;
+        undistortedPic.get(row, col, bite);
+        
+        MatOfInt grayscale = new MatOfInt(CvType.CV_32SC1);
+        undistortedPic.convertTo(grayscale,CvType.CV_32SC1);
+        int[] intArray = new int[(int)(grayscale.total()*grayscale.channels())];
+        grayscale.get(0,0,intArray);
+        
+        
+        Map<DecodeHintType, String> hints = new HashMap<>();
+        hints.put(DecodeHintType.TRY_HARDER, "utf-8");
+        
+        System.out.println(hints.toString());
+        
+        /*for (int i = 0; i < sizeA.height; i++) {
             for (int j = 0; j < sizeA.width; j++) {
-                double[] data = A.get(i, j);
+                double[] data = undistortedPic.get(i, j);
                 intArray[(int)(sizeA.width*i + j)] = (int)data[0];
+                //System.out.println("QR[j][i][data[0]]:"+ "" + j  + " " + i + " " + (int)data[0]);
             }
-		}
- 
+		}*/
+        
 
-        LuminanceSource source = new RGBLuminanceSource((int)croppedPic3.size().width, (int)croppedPic3.size().height, intArray);
+        LuminanceSource source = new RGBLuminanceSource((int)undistortedPic.size().width, (int)undistortedPic.size().height, intArray);
+        source.crop(1,1,(int)sizeB.width-2,(int)sizeB.height-2);
         BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
-        int kozPattern;
-        double result_x, result_y, result_z;
+        int kozPattern = -1;
+        double result_x = -1, result_y = -1, result_z = -1;
         
         try
         {
-        	
-            com.google.zxing.Result result = new QRCodeReader().decode(bitmap);
+            com.google.zxing.Result result = new QRCodeReader().decode(bitmap, hints);
             qrData = result.getText();
             System.out.println("QR[status]:" + " Detected " + qrData);
             	
             // Format : "p":<pattern>,"x":<x>,"y":<y>,"z":<z>
-            Scanner s = new Scanner(qrData);
-            kozPattern = s.nextInt();
-            result_x = s.nextDouble();
-            result_y = s.nextDouble();
-            result_z = s.nextDouble();
+            qrData = qrData.replaceAll("[^0-9,.]", "");
+            System.out.println(qrData);
+            String[] multi_contents = qrData.split(",");
+            System.out.println(multi_contents[0].replaceAll("[^0-9]", ""));
+            kozPattern = Integer.parseInt(multi_contents[0]);
+            result_x = Double.parseDouble(multi_contents[1]);
+            result_y = Double.parseDouble(multi_contents[2]);
+            result_z = Double.parseDouble(multi_contents[3]);
+            
+            
+            
         }
         catch (Exception e)
         {
         	System.out.println("QR[status]:" + " Not detected");
         }
         
-        
+        if(qrData != null) {
+        	System.out.println("QR[qrData]:" + String.valueOf(kozPattern) + " " + String.valueOf(result_x) + " " + String.valueOf(result_y) + " " + String.valueOf(result_z));
+        }
 		
 	}
 	
