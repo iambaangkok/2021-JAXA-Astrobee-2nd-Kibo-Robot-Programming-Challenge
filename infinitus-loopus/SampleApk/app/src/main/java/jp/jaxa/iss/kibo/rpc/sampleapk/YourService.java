@@ -16,6 +16,8 @@ import com.google.zxing.common.HybridBinarizer;
 import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Rect;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
@@ -38,11 +40,11 @@ public class YourService extends KiboRpcService {
         // move(11.71, -9.53, 5.35, 0, 0, 0, 1);
 
         move(11.21,-9.8,4.79,0,0,-0.707,0.707);
-        Log.i("Check" , "move successfully");
+        Log.i("Check" , "Finished - move");
 
         String contents = readQR();
-        api.sendDiscoveredQR(contents);
-        Log.i("AfterQRCode" , contents);
+        //api.sendDiscoveredQR(contents);
+        Log.i("Check" , "Finished - .readQR");
         // Send mission completion
         api.reportMissionCompletion();
     }
@@ -90,8 +92,15 @@ public class YourService extends KiboRpcService {
         String contents = null;
 
         Log.i("QRCode" , "GetMat");
-        Mat pic = api.getMatNavCam();
+        Mat notPic = api.getMatNavCam();
         Log.i("QRCode" , "Finished - GetMat");
+
+        Log.i("QRCode" , "Resize");
+        double scale = 0.5;
+        Mat pic = new Mat();
+        Size newPicSize = new Size(scale * notPic.size().width , scale * notPic.size().height);
+        Imgproc.resize(notPic , pic , newPicSize);
+        Log.i("QRCode" , "Finished - Resize");
 
         Log.i("QRCode" , "Convert To Bitmap");
         Bitmap bMap = Bitmap.createBitmap(pic.width(), pic.height(), Bitmap.Config.ARGB_8888);
