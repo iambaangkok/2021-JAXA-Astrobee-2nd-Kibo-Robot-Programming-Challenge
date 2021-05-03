@@ -42,7 +42,7 @@ public class YourService extends KiboRpcService {
 
         String contents = readQR();
         api.sendDiscoveredQR(contents);
-
+        Log.i("AfterQRCode" , contents);
         // Send mission completion
         api.reportMissionCompletion();
     }
@@ -57,8 +57,6 @@ public class YourService extends KiboRpcService {
         // write here your plan 3
     }
 
-    // You can add your method
-
     public void move(double pos_x, double pos_y, double pos_z,
                                double qua_x, double qua_y, double qua_z,
                                double qua_w){
@@ -68,13 +66,8 @@ public class YourService extends KiboRpcService {
         final Quaternion quaternion = new Quaternion((float)qua_x, (float)qua_y,
                                                      (float)qua_z, (float)qua_w);
 
-        gov.nasa.arc.astrobee.Result result = api.moveTo(point, quaternion, true);
+        api.moveTo(point, quaternion, true);
 
-        int loopCounter = 0;
-        while(!result.hasSucceeded() && loopCounter < LOOP_MAX){
-            result = api.moveTo(point, quaternion, true);
-            ++loopCounter;
-        }
     }
 
     public Mat undistortPic(Mat src , double[][] NavCam){
@@ -96,17 +89,24 @@ public class YourService extends KiboRpcService {
     public String readQR() {
         String contents = null;
 
-        Mat pic = undistortPic(api.getMatNavCam() , api.getNavCamIntrinsics());
+        Log.i("QRCode" , "GetMat");
+        Mat pic = api.getMatNavCam();
+        Log.i("QRCode" , "Finished - GetMat");
 
+        Log.i("QRCode" , "Convert To Bitmap");
         Bitmap bMap = Bitmap.createBitmap(pic.width(), pic.height(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(pic, bMap);
+        Log.i("QRCode" , "Finished - Convert To Bitmap");
 
+        Log.i("QRCode" , "Convert To BinaryBitmap");
         int[] intArray = new int[bMap.getWidth()*bMap.getHeight()];
         bMap.getPixels(intArray, 0, bMap.getWidth(), 0, 0, bMap.getWidth(), bMap.getHeight());
 
         LuminanceSource source = new RGBLuminanceSource(bMap.getWidth(), bMap.getHeight(), intArray);
         BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
+        Log.i("QRCode" , "Finished - Convert To BinaryBitmap");
 
+        Log.i("QRCode" , "Decoding");
         Reader reader = new MultiFormatReader();
         try {
             com.google.zxing.Result result = reader.decode(bitmap);
@@ -114,6 +114,9 @@ public class YourService extends KiboRpcService {
         } catch (NotFoundException e) { e.printStackTrace(); }
         catch (ChecksumException e) { e.printStackTrace(); }
         catch (FormatException e) { e.printStackTrace(); }
+        Log.i("QRCode" , "Finished - Decoding");
+
+        Log.i("QRCode" , "The content is " + contents);
         return contents;
     }
 }
