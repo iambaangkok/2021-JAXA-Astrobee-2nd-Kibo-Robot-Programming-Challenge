@@ -12,13 +12,17 @@ import android.os.SystemClock;
 import android.util.Log;
 // android library
 import com.google.zxing.BinaryBitmap;
+import com.google.zxing.DecodeHintType;
 import com.google.zxing.LuminanceSource;
+import com.google.zxing.MultiFormatReader;
 import com.google.zxing.RGBLuminanceSource;
+import com.google.zxing.ReaderException;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.qrcode.QRCodeReader;
 // zxing library
 import org.opencv.aruco.Aruco;
 import org.opencv.aruco.Dictionary;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
@@ -27,7 +31,9 @@ import org.opencv.core.Rect;
 import static org.opencv.android.Utils.matToBitmap;
 // opencv library
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 // java library
 
 
@@ -138,6 +144,8 @@ public class YourService extends KiboRpcService
         Log.d("Mode[camera]:"," sim");
 
         Imgproc.undistort(src, dst, cameraMatrix, distCoeffs);
+        Imgproc.GaussianBlur(src, src, new Size(0,0), 10);
+        Core.addWeighted(src , 1.5 , src , -0.5 , 0 ,src);
         return dst;
     }
 
@@ -170,7 +178,7 @@ public class YourService extends KiboRpcService
     {
         if(status)
         {
-            api.flashlightControlFront(0.3f);
+            api.flashlightControlFront(0.025f);
 
             try
             {
@@ -197,9 +205,12 @@ public class YourService extends KiboRpcService
 
             moveTo(px, py, pz, qx, qy, qz, qw);
             Log.d("QR[NO]:"," "+no);
-
             flash_control(true);
-            Mat src_mat = new Mat(undistord(api.getMatNavCam()), cropImage(40));
+
+            boolean notDetected = false;
+/*
+
+            Mat src_mat = new Mat(undistord(api.getMatNavCam()), cropImage(10));
             Bitmap bMap = resizeImage(src_mat, 2000, 1500);
 
             //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -224,8 +235,14 @@ public class YourService extends KiboRpcService
             catch (Exception e)
             {
                 Log.d("QR[status]:", " Not detected");
+                notDetected = true;
             }
             //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ */
+            String multi_contents = decodeWithZxing(api.getBitmapNavCam());
+            Log.d("QR[status]:", "New Scan --> " + multi_contents);
+
             Log.d("QR[status]:", " stop");
             long stop_time = SystemClock.elapsedRealtime();
 
@@ -235,8 +252,37 @@ public class YourService extends KiboRpcService
         }
         
         flash_control(false);
-        api.sendDiscoveredQR(contents);
+        //api.sendDiscoveredQR(contents);
+        Log.i("Answer", "QR_event: " + contents);
         return new double[] {final_x, final_y, final_z, final_w};
+    }
+
+    public static String decodeWithZxing(Bitmap bitmap) {
+        MultiFormatReader multiFormatReader = new MultiFormatReader();
+        Map<DecodeHintType, Object> hints = new Hashtable<>();
+        hints.put(DecodeHintType.PURE_BARCODE, Boolean.TRUE);
+        multiFormatReader.setHints(hints);
+
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+
+        int[] pixels = new int[width * height];
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
+
+        com.google.zxing.Result rawResult = null;
+        RGBLuminanceSource source = new RGBLuminanceSource(width, height, pixels);
+
+        if (source != null) {
+            BinaryBitmap binaryBitmap = new BinaryBitmap(new HybridBinarizer(source));
+            try {
+                rawResult = multiFormatReader.decodeWithState(binaryBitmap);
+            } catch (ReaderException re) {
+                re.printStackTrace();
+            } finally {
+                multiFormatReader.reset();
+            }
+        }
+        return rawResult != null ? rawResult.getText() : null;
     }
 
 }
