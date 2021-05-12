@@ -67,7 +67,7 @@ public class YourService extends KiboRpcService {
         // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
         Point p60 = new Point();
         if(kozPattern == 2){
-             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
+            p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
             moveTo(p60.getX(),p60.getY(),p60.getZ(), 0, 0, -0.707f, 0.707f);
         }
 
@@ -133,8 +133,8 @@ public class YourService extends KiboRpcService {
         LogT(TAG,"start");
 
         double x = from.getX() + (to.getX()-from.getX())*percent/100;
-        double y = from.getX() + (to.getY()-from.getY())*percent/100;
-        double z = from.getX() + (to.getZ()-from.getZ())*percent/100;
+        double y = from.getY() + (to.getY()-from.getY())*percent/100;
+        double z = from.getZ() + (to.getZ()-from.getZ())*percent/100;
 
         Point avg = new Point(x,y,z);
         LogT(TAG,"avg = " + avg.toString());
