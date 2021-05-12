@@ -65,15 +65,26 @@ public class YourService extends KiboRpcService {
         int kozPattern = (int)qrData[0];
 
         // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
-
+        Point p60 = new Point();
         if(kozPattern == 2){
-            Point p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
+             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
             moveTo(p60.getX(),p60.getY(),p60.getZ(), 0, 0, -0.707f, 0.707f);
         }
 
         double[] targetPoint = arEvent();
 
+        Point robotPos = getRobotPosition();
 
+        Vector3f forward = new Vector3f((float)(targetPoint[0]-robotPos.getX()), (float)(targetPoint[1]-robotPos.getY()), (float)(targetPoint[2]-robotPos.getZ()));
+        Vector3f up = new Vector3f(0,0,-1);
+
+        Quaternion lookAtTarget = quaternionLookRotation(forward,up);
+
+        moveTo(robotPos.getX(),robotPos.getY(),robotPos.getZ(), lookAtTarget.getX(), lookAtTarget.getY(), lookAtTarget.getZ(), lookAtTarget.getW());
+        LogT(TAG,"laser");
+        api.laserControl(true);
+        LogT(TAG,"snap");
+        api.takeSnapshot();
 
         LogT(TAG, "successful");
 
@@ -372,10 +383,13 @@ public class YourService extends KiboRpcService {
         LogT(TAG,"start");
 
         double[] sum = new double[2];
-
+        sum[0] = sum[1] = 0;
+        LogT(TAG,"init");
         for(int j = 0 ; j < 4; ++j){
+            LogT(TAG,"" + j + "x");
             sum[0] += corner.get(0,2*j)[0];
-            sum[1] += corner.get(0,2*j-1)[0];
+            LogT(TAG,"" + j + "y");
+            sum[1] += corner.get(0,2*j+1)[0];
         }
         sum[0] /= 4;
         sum[1] /= 4;
@@ -390,8 +404,7 @@ public class YourService extends KiboRpcService {
         double centerX = 0, centerY = 0;
 
         for(int i = 0 ; i < 4; ++i){
-            double[] sumXY = new double[2];
-            sumXY = getMarkerCenter(corners.get(i));
+            double[] sumXY = getMarkerCenter(corners.get(i));
             centerX += sumXY[0];
             centerY += sumXY[1];
         }
