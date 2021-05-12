@@ -29,6 +29,7 @@ import org.opencv.core.Rect;
 import org.opencv.objdetect.QRCodeDetector;
 import static org.opencv.android.Utils.matToBitmap;
 import org.opencv.calib3d.Calib3d;
+
 // java library
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -62,10 +63,10 @@ public class YourService extends KiboRpcService {
 
         // move to point A' (11.21, -9.8, 4.79, 0) quaternion A (0, 0, -0.707f, 0.707f)
         moveTo(qrData[1],qrData[2],qrData[3],0, 0, -0.707f, 0.707f);
-
+        float[] arData = arEvent();
         Log.d(TAG, "successful");
 
-
+        moveTo(10.6,-8.0,4.5,0,0,-0.707f,0.707f);
         api.reportMissionCompletion();
     }
 
@@ -208,6 +209,15 @@ public class YourService extends KiboRpcService {
         }
 
         Log.d(TAG, "failed to read qr code");
+        return null;
+    }
+
+    public float[] arEvent()
+    {
+        final String TAG = "[arEvent]: ";
+        Log.d(TAG,"start");
+
+
         return null;
     }
 }
