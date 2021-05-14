@@ -5,7 +5,6 @@ import gov.nasa.arc.astrobee.Kinematics;
 import gov.nasa.arc.astrobee.Result;
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
-
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
 import jp.jaxa.iss.kibo.rpc.api.types.PointCloud;
 // android library
@@ -65,6 +64,9 @@ public class YourService extends KiboRpcService {
         int kozPattern = (int)qrData[0];
 
         // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
+        Quaternion lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,0,-1));
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+
         Point p60 = new Point();
         if(kozPattern == 2){
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
@@ -149,7 +151,7 @@ public class YourService extends KiboRpcService {
         Quaternion q = new Quaternion(qx,qy,qz,qw);
         int loopCount = 0;
         Result result;
-        LogT(TAG, "start");
+        LogT(TAG, "start " + x + "," + y + "," + z + " | " + qx + "," + qy + "," + qz + "," + qw);
 
         do {
             result = api.moveTo(p,q,true);
@@ -384,12 +386,11 @@ public class YourService extends KiboRpcService {
 
         double[] sum = new double[2];
         sum[0] = sum[1] = 0;
-        LogT(TAG,"init");
         for(int j = 0 ; j < 4; ++j){
             LogT(TAG,"" + j + "x");
-            sum[0] += corner.get(0,2*j)[0];
+            sum[0] += corner.get(0,j)[0];
             LogT(TAG,"" + j + "y");
-            sum[1] += corner.get(0,2*j+1)[0];
+            sum[1] += corner.get(0,j)[1];
         }
         sum[0] /= 4;
         sum[1] /= 4;
@@ -420,25 +421,38 @@ public class YourService extends KiboRpcService {
         final String TAG = "[getARCenterPoint]: ";
         LogT(TAG,"start");
 
-        PointCloud pointCloud = getPointCloud();
-        if(pointCloud != null){
-            int pointCloudWidth = pointCloud.getWidth(); // 224 : 1280
-            int pointCloudHeight = pointCloud.getHeight(); // 171 : 960
-            Point[] pointArray = pointCloud.getPointArray();
-
-            int pointCloudX = (int)(pointFromNavCam[0]/NAV_CAM_WIDTH*pointCloudWidth);
-            int pointCloudY = (int)(pointFromNavCam[1]/NAV_CAM_HEIGHT*pointCloudHeight);
-            Point targetPoint = pointArray[pointCloudY*pointCloudWidth + pointCloudX];
-            LogT(TAG,  "targetPoint = " + targetPoint.toString());
-            double[] result = new double[3];
-            result[0] = targetPoint.getX();
-            result[1] = targetPoint.getY();
-            result[2] = targetPoint.getZ();
-            return result;
-        }else{
-            LogT(TAG, "failed to get point cloud");
-            return null;
+        int loopCount = 0;
+        while(loopCount < LOOP_MAX){
+            try{
+                LogT(TAG,"getting point cloud hazcam");
+                PointCloud pointCloud = api.getPointCloudHazCam();
+                LogT(TAG,"get width");
+                int pointCloudWidth = pointCloud.getWidth(); // 224 : 1280
+                LogT(TAG,"get height");
+                int pointCloudHeight = pointCloud.getHeight(); // 171 : 960
+                LogT(TAG,"get point array");
+                Point[] pointArray = pointCloud.getPointArray();
+                LogT(TAG,"pcX");
+                int pointCloudX = (int)(pointFromNavCam[0]/NAV_CAM_WIDTH*pointCloudWidth);
+                LogT(TAG,"pcY");
+                int pointCloudY = (int)(pointFromNavCam[1]/NAV_CAM_HEIGHT*pointCloudHeight);
+                LogT(TAG,"tgtPoint");
+                Point targetPoint = pointArray[pointCloudY*pointCloudWidth + pointCloudX];
+                LogT(TAG,  "targetPoint = " + targetPoint.toString());
+                double[] result = new double[3];
+                result[0] = targetPoint.getX(); // x
+                result[1] = -targetPoint.getZ(); // y
+                result[2] = targetPoint.getY(); // z
+                LogT(TAG,"ar center point retrieved");
+                return result;
+            }catch (Exception e){
+                LogT(TAG, "an error occurred while getting ar center point");
+                e.printStackTrace();
+            }
+            loopCount++;
         }
+        LogT(TAG, "failed to get point cloud");
+        return null;
     }
 
     public double[] arEvent(){
@@ -449,7 +463,7 @@ public class YourService extends KiboRpcService {
         double[] result = new double[3];
 
         Rect roi = new Rect();
-        Mat image = undistort(api.getMatNavCam(),roi);
+        Mat image = api.getMatNavCam();//undistort(api.getMatNavCam(),roi);
         Mat ids = new Mat();
         Dictionary dict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
         List<Mat> corners = new ArrayList<>();
@@ -472,6 +486,7 @@ public class YourService extends KiboRpcService {
                 arContent = (int) ids.get(0, 0)[0];
 
                 LogT(TAG,"ar read successfully");
+                return result;
             }
             catch (Exception e)
             {
