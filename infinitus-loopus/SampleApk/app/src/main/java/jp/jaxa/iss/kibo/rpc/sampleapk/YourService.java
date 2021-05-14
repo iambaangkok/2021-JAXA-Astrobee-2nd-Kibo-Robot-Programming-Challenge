@@ -57,6 +57,16 @@ public class YourService extends KiboRpcService {
         startTime = getTime();
 
         // move to point A (11.21, -9.8, 4.79) quaternion A (0, 0, -0.707f, 0.707f)
+        eulersToQuaternion(quaternionToEulers(new Quaternion(1,0,0,0)));
+        eulersToQuaternion(quaternionToEulers(new Quaternion(0,1,0,0)));
+        eulersToQuaternion(quaternionToEulers(new Quaternion(0,0,1,0)));
+        eulersToQuaternion(quaternionToEulers(new Quaternion(0,0,0,1)));
+
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(1,0,0,0)))));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(0,1,0,0)))));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(0,0,1,0)))));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(0,0,0,1)))));
+
         moveTo(11.21, -9.8, 4.79, 0, 0, -0.707f, 0.707f);
         eulersToQuaternion(quaternionToEulers(new Quaternion(0, 0, -0.707f, 0.707f)));
 
@@ -380,7 +390,7 @@ public class YourService extends KiboRpcService {
         double cosy_cosp = 1 - 2 * (qy * qy + qz * qz);
         angles[2] = Math.atan2(siny_cosp, cosy_cosp);
 
-        LogT(TAG,"eulers = " + angles.toString());
+        LogT(TAG,"eulers = " + angles[0] + ", " + angles[1] + ", " + angles[2]);
 
         return angles;
     }
@@ -407,6 +417,26 @@ public class YourService extends KiboRpcService {
         LogT(TAG,"quaternion = " + q.toString());
 
         return q;
+    }
+    private double[] eulersDegToRad(double[] degs){
+        final String TAG = "[eulersDegToRad]: ";
+        LogT(TAG,"start");
+        double[] rads = new double[3];
+        for(int i = 0 ; i < 3; ++i){
+            rads[i] = Math.toRadians(degs[i]);
+        }
+        LogT(TAG, "rads = " + rads[0] + ", " + rads[1] + ", " + rads[2]);
+        return rads;
+    }
+    private double[] eulersRadToDeg(double[] rads){
+        final String TAG = "[eulersRadToDeg]: ";
+        LogT(TAG,"start");
+        double[] degs = new double[3];
+        for(int i = 0 ; i < 3; ++i){
+            degs[i] = Math.toRadians(rads[i]);
+        }
+        LogT(TAG, "deg = " + degs[0] + ", " + degs[1] + ", " + degs[2]);
+        return degs;
     }
 
     private static Quaternion quaternionLookRotation(Vector3f forward, Vector3f up){
