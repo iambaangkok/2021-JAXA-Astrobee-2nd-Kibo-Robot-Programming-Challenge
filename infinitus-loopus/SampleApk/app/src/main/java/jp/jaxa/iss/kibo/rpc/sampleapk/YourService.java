@@ -64,10 +64,27 @@ public class YourService extends KiboRpcService {
         int kozPattern = (int)qrData[0];
 
         // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
+
+
         Quaternion lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,0,-1));
         moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
 
-        Point p60 = new Point();
+        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,0,1));
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+
+        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,-1,0));
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+
+        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,1,0));
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+
+        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(-1,0,0));
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+
+        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(1,0,0));
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+
+        Point p60;
         if(kozPattern == 2){
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
             moveTo(p60.getX(),p60.getY(),p60.getZ(), 0, 0, -0.707f, 0.707f);
@@ -77,8 +94,8 @@ public class YourService extends KiboRpcService {
 
         Point robotPos = getRobotPosition();
 
-        Vector3f forward = new Vector3f((float)(targetPoint[0]-robotPos.getX()), (float)(targetPoint[1]-robotPos.getY()), (float)(targetPoint[2]-robotPos.getZ()));
-        Vector3f up = new Vector3f(0,0,-1);
+        Vector3f forward = new Vector3f((float)(targetPoint[0]), (float)(targetPoint[1]), (float)(targetPoint[2]));
+        Vector3f up = new Vector3f(0,1,0);
 
         Quaternion lookAtTarget = quaternionLookRotation(forward,up);
 
@@ -284,7 +301,7 @@ public class YourService extends KiboRpcService {
 
         while(qrData == null && loopCount < LOOP_MAX){
             LogT(TAG, "loopCount " + loopCount);
-            setFlashOn(true,loopCount);
+            setFlashOn(true,(loopCount+1)%3);
             try{
                 LogT(TAG, "reading qr code");
                 bitmap = getNavCamImage();
@@ -441,8 +458,8 @@ public class YourService extends KiboRpcService {
                 LogT(TAG,  "targetPoint = " + targetPoint.toString());
                 double[] result = new double[3];
                 result[0] = targetPoint.getX(); // x
-                result[1] = -targetPoint.getZ(); // y
-                result[2] = targetPoint.getY(); // z
+                result[1] = targetPoint.getY(); // y
+                result[2] = targetPoint.getZ(); // z
                 LogT(TAG,"ar center point retrieved");
                 return result;
             }catch (Exception e){
@@ -462,16 +479,19 @@ public class YourService extends KiboRpcService {
         int loopCount = 0;
         double[] result = new double[3];
 
-        Rect roi = new Rect();
-        Mat image = api.getMatNavCam();//undistort(api.getMatNavCam(),roi);
-        Mat ids = new Mat();
-        Dictionary dict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
-        List<Mat> corners = new ArrayList<>();
+
 
         LogT(TAG, "start");
 
         while (arContent == 0 && loopCount < LOOP_MAX){
             LogT(TAG, "loopCount " + loopCount);
+
+            Rect roi = new Rect();
+            Mat image = undistort(api.getMatNavCam(),roi);
+            Mat ids = new Mat();
+            Dictionary dict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
+            List<Mat> corners = new ArrayList<>();
+
             try{
                 LogT(TAG, "reading ar");
                 Aruco.detectMarkers(image, dict, corners, ids);
