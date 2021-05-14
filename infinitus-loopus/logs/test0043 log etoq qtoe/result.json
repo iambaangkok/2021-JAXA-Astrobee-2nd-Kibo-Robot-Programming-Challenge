@@ -1,0 +1,19 @@
+{
+    "Report": {
+        "try": false,
+        "success": false
+    },
+    "Illegal": false,
+    "QR": {
+        "0": {
+            "timestamp": "19700101 000439416",
+            "result": true
+        }
+    },
+    "Approach": [
+        {}
+    ],
+    "Mission Time": {
+        "start": "19700101 000219288"
+    }
+}
