@@ -433,7 +433,7 @@ public class YourService extends KiboRpcService {
         LogT(TAG,"start");
         double[] degs = new double[3];
         for(int i = 0 ; i < 3; ++i){
-            degs[i] = Math.toRadians(rads[i]);
+            degs[i] = Math.toDegrees(rads[i]);
         }
         LogT(TAG, "deg = " + degs[0] + ", " + degs[1] + ", " + degs[2]);
         return degs;
