@@ -58,6 +58,7 @@ public class YourService extends KiboRpcService {
 
         // move to point A (11.21, -9.8, 4.79) quaternion A (0, 0, -0.707f, 0.707f)
         moveTo(11.21, -9.8, 4.79, 0, 0, -0.707f, 0.707f);
+        eulersToQuaternion(quaternionToEulers(new Quaternion(0, 0, -0.707f, 0.707f)));
 
         // scan QR Code to get point A' (qrData[0], qrData[1], qrData[2]) quaternion A' (0, 0, -0.707, 0.707) KOZ pattern (qrData[3])
         float[] qrData = qrEvent();
@@ -68,21 +69,27 @@ public class YourService extends KiboRpcService {
 
         Quaternion lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,0,-1));
         moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
 
-        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,0,1));
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,0,1)); // this one faces normally
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
 
         lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,-1,0));
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
 
         lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,1,0));
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
 
         lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(-1,0,0));
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
 
         lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(1,0,0));
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+        moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
 
         Point p60;
         if(kozPattern == 2){
@@ -98,6 +105,7 @@ public class YourService extends KiboRpcService {
         Vector3f up = new Vector3f(0,1,0);
 
         Quaternion lookAtTarget = quaternionLookRotation(forward,up);
+        eulersToQuaternion(quaternionToEulers(lookAtTarget));
 
         moveTo(robotPos.getX(),robotPos.getY(),robotPos.getZ(), lookAtTarget.getX(), lookAtTarget.getY(), lookAtTarget.getZ(), lookAtTarget.getW());
         LogT(TAG,"laser");
@@ -111,16 +119,10 @@ public class YourService extends KiboRpcService {
     }
 
 
-    private static long getTime(){
-        return SystemClock.elapsedRealtime();
-    }
-    private static long getElapsedTime(){
-        return getTime()-startTime;
-    }
+    private static long getTime(){ return SystemClock.elapsedRealtime(); }
+    private static long getElapsedTime(){ return getTime()-startTime; }
     private static String getElapsedTimeS(){ return " _Time_: " + String.valueOf(getElapsedTime()); }
-    private static void LogT(String TAG, String msg){
-        Log.d(TAG,msg + " " + getElapsedTimeS());
-    }
+    private static void LogT(String TAG, String msg){ Log.d(TAG,msg + " " + getElapsedTimeS()); }
 
     private Point getRobotPosition(){
         final String TAG = "[getRobotPosition]: ";
@@ -166,6 +168,26 @@ public class YourService extends KiboRpcService {
 
         Point p = new Point(x,y,z);
         Quaternion q = new Quaternion(qx,qy,qz,qw);
+        int loopCount = 0;
+        Result result;
+        LogT(TAG, "start " + x + "," + y + "," + z + " | " + qx + "," + qy + "," + qz + "," + qw);
+
+        do {
+            result = api.moveTo(p,q,true);
+            loopCount++;
+        } while(!result.hasSucceeded() && loopCount < LOOP_MAX);
+
+        LogT(TAG,"finished");
+    }
+    private void moveTo(double x, double y, double z, Quaternion q){
+        float qx = q.getX();
+        float qy = q.getY();
+        float qz = q.getZ();
+        float qw = q.getW();
+
+        final String TAG = "[moveTo]: ";
+
+        Point p = new Point(x,y,z);
         int loopCount = 0;
         Result result;
         LogT(TAG, "start " + x + "," + y + "," + z + " | " + qx + "," + qy + "," + qz + "," + qw);
@@ -328,6 +350,63 @@ public class YourService extends KiboRpcService {
 
         LogT(TAG, "failed to read qr code");
         return null;
+    }
+
+    private double[] quaternionToEulers(Quaternion q) {
+        final String TAG = "[quaternionToEulers]: ";
+        LogT(TAG,"start");
+        double[] angles = new double[3]; // roll, pitch, yaw
+
+        float qx = q.getX();
+        float qy = q.getY();
+        float qz = q.getZ();
+        float qw = q.getW();
+
+        // roll (x-axis rotation)
+        double sinr_cosp = 2 * (qw * qx + qy * qz);
+        double cosr_cosp = 1 - 2 * (qx * qx + qy * qy);
+        angles[0] = Math.atan2(sinr_cosp, cosr_cosp);
+
+        // pitch (y-axis rotation)
+        double sinp = 2 * (qw * qy - qz * qx);
+        if (Math.abs(sinp) >= 1){
+            angles[1] = Math.copySign(Math.PI / 2, sinp); // use 90 degrees if out of range
+        } else {
+            angles[1] = Math.asin(sinp);
+        }
+
+        // yaw (z-axis rotation)
+        double siny_cosp = 2 * (qw * qz + qx * qy);
+        double cosy_cosp = 1 - 2 * (qy * qy + qz * qz);
+        angles[2] = Math.atan2(siny_cosp, cosy_cosp);
+
+        LogT(TAG,"eulers = " + angles.toString());
+
+        return angles;
+    }
+    private Quaternion eulersToQuaternion(double[] eulers){
+        final String TAG = "[eulersToQuaternion]: ";
+        LogT(TAG,"start");
+        double roll = eulers[0];
+        double pitch = eulers[1];
+        double yaw = eulers[2];
+        double cy = Math.cos(yaw * 0.5);
+        double sy = Math.sin(yaw * 0.5);
+        double cp = Math.cos(pitch * 0.5);
+        double sp = Math.sin(pitch * 0.5);
+        double cr = Math.cos(roll * 0.5);
+        double sr = Math.sin(roll * 0.5);
+
+        double qw, qx, qy, qz;
+        qw = cr * cp * cy + sr * sp * sy;
+        qx = sr * cp * cy - cr * sp * sy;
+        qy = cr * sp * cy + sr * cp * sy;
+        qz = cr * cp * sy - sr * sp * cy;
+
+        Quaternion q = new Quaternion((float)qx, (float)qy, (float)qz, (float)qw);
+        LogT(TAG,"quaternion = " + q.toString());
+
+        return q;
     }
 
     private static Quaternion quaternionLookRotation(Vector3f forward, Vector3f up){
