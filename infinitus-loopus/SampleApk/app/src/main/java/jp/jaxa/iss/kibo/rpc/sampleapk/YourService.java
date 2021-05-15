@@ -57,49 +57,88 @@ public class YourService extends KiboRpcService {
         startTime = getTime();
 
         // move to point A (11.21, -9.8, 4.79) quaternion A (0, 0, -0.707f, 0.707f)
-        eulersToQuaternion(quaternionToEulers(new Quaternion(1,0,0,0)));
-        eulersToQuaternion(quaternionToEulers(new Quaternion(0,1,0,0)));
-        eulersToQuaternion(quaternionToEulers(new Quaternion(0,0,1,0)));
-        eulersToQuaternion(quaternionToEulers(new Quaternion(0,0,0,1)));
-
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(1,0,0,0)))));
+        /*eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(1,0,0,0)))));
         eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(0,1,0,0)))));
         eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(0,0,1,0)))));
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(0,0,0,1)))));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(0,0,0,1)))));*/
 
         moveTo(11.21, -9.8, 4.79, 0, 0, -0.707f, 0.707f);
-        eulersToQuaternion(quaternionToEulers(new Quaternion(0, 0, -0.707f, 0.707f)));
 
         // scan QR Code to get point A' (qrData[0], qrData[1], qrData[2]) quaternion A' (0, 0, -0.707, 0.707) KOZ pattern (qrData[3])
-        float[] qrData = qrEvent();
+        float[] qrData = new float[4];//qrEvent();
         int kozPattern = (int)qrData[0];
 
         // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
 
+        LogT(TAG,"check up for x+ as forward");
 
-        Quaternion lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,0,-1));
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
-        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
+        Quaternion look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(0,0,-1));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(0,0,1));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(0,-1,0));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(0,1,0));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(-1,0,0));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(1,0,0));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
 
-        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,0,1)); // this one faces normally
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
 
-        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,-1,0));
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
+        /*{
+            LogT(TAG, "check swap x-z up Z");
 
-        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(0,1,0));
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
+            Quaternion lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0, 0, -1));
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
+            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(0, 0, -1));
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
 
-        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(-1,0,0));
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
+            lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0, 0, 1)); // this one faces normally
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(0, 0, 1)); // this one faces normally
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
 
-        lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f-11.21f,-9.8f+9.8f, 5.51f-4.79f), new Vector3f(1,0,0));
-        moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-        eulersToQuaternion(quaternionToEulers(lookAtoAprime));
+            LogT(TAG, "check swap x-z up Y");
+            lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0, -1, 0));
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(0, -1, 0));
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+
+            lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0, 1, 0));
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(0, 1, 0));
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+
+            LogT(TAG, "check swap x-z up X");
+            lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(-1, 0, 0));
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(-1, 0, 0));
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+
+            lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(1, 0, 0));
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(1, 0, 0));
+            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
+            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
+        }*/
 
         Point p60;
         if(kozPattern == 2){
@@ -107,7 +146,7 @@ public class YourService extends KiboRpcService {
             moveTo(p60.getX(),p60.getY(),p60.getZ(), 0, 0, -0.707f, 0.707f);
         }
 
-        double[] targetPoint = arEvent();
+        /*double[] targetPoint = arEvent();
 
         Point robotPos = getRobotPosition();
 
@@ -117,7 +156,7 @@ public class YourService extends KiboRpcService {
         Quaternion lookAtTarget = quaternionLookRotation(forward,up);
         eulersToQuaternion(quaternionToEulers(lookAtTarget));
 
-        moveTo(robotPos.getX(),robotPos.getY(),robotPos.getZ(), lookAtTarget.getX(), lookAtTarget.getY(), lookAtTarget.getZ(), lookAtTarget.getW());
+        moveTo(robotPos.getX(),robotPos.getY(),robotPos.getZ(), lookAtTarget.getX(), lookAtTarget.getY(), lookAtTarget.getZ(), lookAtTarget.getW());*/
         LogT(TAG,"laser");
         api.laserControl(true);
         LogT(TAG,"snap");
