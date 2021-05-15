@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.List;
 import javax.vecmath.Vector3f;
+import javax.vecmath.Quat4f;
 
 /**
  * Class meant to handle commands from the Ground Data System and execute them in Astrobee
@@ -54,6 +55,7 @@ public class YourService extends KiboRpcService {
         final String TAG = "[main]: ";
 
         api.startMission();
+        api.laserControl(true);
         startTime = getTime();
 
         // move to point A (11.21, -9.8, 4.79) quaternion A (0, 0, -0.707f, 0.707f)
@@ -71,25 +73,93 @@ public class YourService extends KiboRpcService {
         // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
 
         LogT(TAG,"check up for x+ as forward");
+        Vector3f fforward = new Vector3f(1,0, 0);
 
-        Quaternion look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(0,0,-1));
+        double[] eulersRotY90 = {0, -90, 0};
+        Quaternion rotY90 = eulersToQuaternion(eulersRotY90);
+
+        Quaternion rotAxis = createFromAxisAngle(0,1,0, -90);
+
+
+        //Quat4f q1 = new Quat4f(rotY90.getX(),rotY90.getY(),rotY90.getZ(),rotY90.getW());
+
+        Quaternion look = quaternionLookRotation(fforward, new Vector3f(0,0,-1));
+        /*eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);*/
+        look = quaternionLookRotation(fforward, new Vector3f(0,0,1));
+
+        //Quat4f q2 = new Quat4f(look.getX(), look.getY(), look.getZ(), look.getW());
+        //q1.mul(q2);
+
+
+        /*look = multiplyQuaternion(look,rotAxis);
         eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
         moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(0,0,1));
+
+        look = quaternionLookRotation(fforward, new Vector3f(0,0,-1));
+        look = multiplyQuaternion(look,rotAxis);
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);*/
+
+        look = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0,1,0));
+        look = multiplyQuaternion(look,rotAxis);
         eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
         moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(0,-1,0));
+
+        /*look = quaternionLookRotation(fforward, new Vector3f(0,-1,0));
+        look = multiplyQuaternion(look,rotAxis);
         eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
         moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(0,1,0));
+        look = quaternionLookRotation(fforward, new Vector3f(1,0,0));
+        look = multiplyQuaternion(look,rotAxis);
         eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
         moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(-1,0,0));
+        look = quaternionLookRotation(fforward, new Vector3f(-1,0,0));
+        look = multiplyQuaternion(look,rotAxis);
         eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
         moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(new Vector3f(1,0, 0), new Vector3f(1,0,0));
+
+
+        look = quaternionLookRotation(fforward, new Vector3f(0,0,1));
+        look = multiplyQuaternion(rotAxis,look);
         eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
         moveTo(11.21, -9.8, 4.79, look);
+
+        look = quaternionLookRotation(fforward, new Vector3f(0,0,-1));
+        look = multiplyQuaternion(rotAxis,look);
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(fforward, new Vector3f(0,1,0));
+        look = multiplyQuaternion(rotAxis,look);
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(fforward, new Vector3f(0,-1,0));
+        look = multiplyQuaternion(rotAxis,look);
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(fforward, new Vector3f(1,0,0));
+        look = multiplyQuaternion(rotAxis,look);
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(fforward, new Vector3f(-1,0,0));
+        look = multiplyQuaternion(rotAxis,look);
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);*/
+
+
+
+        /*look = quaternionLookRotation(fforward, new Vector3f(0,-1,0));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(fforward, new Vector3f(0,1,0));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(fforward, new Vector3f(-1,0,0));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);
+        look = quaternionLookRotation(fforward, new Vector3f(1,0,0));
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
+        moveTo(11.21, -9.8, 4.79, look);*/
 
 
         /*{
@@ -165,6 +235,62 @@ public class YourService extends KiboRpcService {
         LogT(TAG, "successful");
 
         api.reportMissionCompletion();
+    }
+
+    private Quaternion createFromAxisAngle(float xx, float yy, float zz, float angle) {
+        final String TAG = "[createFromAxisAngle]: ";
+        LogT(TAG,"start");
+
+        float aangle = (float)(angle*Math.PI/180);
+        // Here we calculate the sin( theta / 2) once for optimization
+        float factor = (float)Math.sin( aangle / 2.0f );
+
+        // Calculate the x, y and z of the quaternion
+        float x = xx * factor;
+        float y = yy * factor;
+        float z = zz * factor;
+
+        // Calcualte the w value by cos( theta / 2 )
+        float w = (float)Math.cos( aangle / 2.0f );
+        Quat4f q = new Quat4f(x,y,z,w);
+        q.normalize();
+        Quaternion result = new Quaternion(q.x, q.y, q.z, q.w);
+        LogT(TAG,"created quaternion = " + result.toString());
+        return result;
+    }
+
+    private Quaternion multiplyQuaternion(Quaternion a, Quaternion b) {
+        final String TAG = "[multiplyQuaternion]: ";
+        LogT(TAG,"start");
+
+        float ax = a.getX();
+        float ay = a.getY();
+        float az = a.getZ();
+        float aw = a.getW();
+
+        float bx = b.getX();
+        float by = b.getY();
+        float bz = b.getZ();
+        float bw = b.getW();
+
+        float x,y,z,w;
+        Quat4f q1 = new Quat4f(ax,ay,az,aw);
+        Quat4f q2 = new Quat4f(bx,by,bz,bw);
+
+        q1.mul(q2);
+
+        x = q1.x;
+        y = q1.y;
+        z = q1.z;
+        w = q1.w;
+
+        /*float x = aw * bx + ax * bw + ay * bz - az * by;    // i
+        float y = aw * by - ax * bz + ay * bw + az * bx;    // j
+        float z = aw * bz + ax * by - ay * bx + az * bw;    // k
+        float w = aw * bw - ax * bx - ay * by - az * bz;    // 1*/
+        Quaternion result = new Quaternion(x,y,z,w);
+        LogT(TAG,"multiplied quaternion = " + result.toString());
+        return result;
     }
 
 
