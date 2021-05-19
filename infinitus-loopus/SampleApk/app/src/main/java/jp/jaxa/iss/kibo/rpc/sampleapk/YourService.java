@@ -22,7 +22,6 @@ import com.google.zxing.BarcodeFormat;
 // opencv library
 import org.opencv.aruco.Aruco;
 import org.opencv.aruco.Dictionary;
-import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
@@ -49,184 +48,52 @@ public class YourService extends KiboRpcService {
     final int NAV_CAM_WIDTH = 1280;
     final int NAV_CAM_HEIGHT = 960;
     final Point pointA = new Point(11.21, -9.8, 4.79);
+    final Quaternion quaternionA = new Quaternion(0, 0, -0.707f, 0.707f);
+    final Vector3f up = new Vector3f(0,1,0);
+
     static long startTime = 0;
+
     @Override
     protected void runPlan1(){
         final String TAG = "[main]: ";
 
         api.startMission();
-        api.laserControl(true);
         startTime = getTime();
 
         // move to point A (11.21, -9.8, 4.79) quaternion A (0, 0, -0.707f, 0.707f)
-        /*eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(1,0,0,0)))));
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(0,1,0,0)))));
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(0,0,1,0)))));
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(new Quaternion(0,0,0,1)))));*/
-
         moveTo(11.21, -9.8, 4.79, 0, 0, -0.707f, 0.707f);
 
         // scan QR Code to get point A' (qrData[0], qrData[1], qrData[2]) quaternion A' (0, 0, -0.707, 0.707) KOZ pattern (qrData[3])
-        float[] qrData = new float[4];//qrEvent();
+        float[] qrData = qrEvent();
         int kozPattern = (int)qrData[0];
 
         // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
+        Quaternion lookAToAPrime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0,1,0));
+        moveTo(11.21, -9.8, 4.79, lookAToAPrime);
 
-        LogT(TAG,"check up for x+ as forward");
-        Vector3f fforward = new Vector3f(1,0, 0);
-
-        double[] eulersRotY90 = {0, -90, 0};
-        Quaternion rotY90 = eulersToQuaternion(eulersRotY90);
-
-        Quaternion rotAxis = createFromAxisAngle(0,1,0, -90);
-
-
-        //Quat4f q1 = new Quat4f(rotY90.getX(),rotY90.getY(),rotY90.getZ(),rotY90.getW());
-
-        Quaternion look = quaternionLookRotation(fforward, new Vector3f(0,0,-1));
-        /*eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);*/
-        look = quaternionLookRotation(fforward, new Vector3f(0,0,1));
-
-        //Quat4f q2 = new Quat4f(look.getX(), look.getY(), look.getZ(), look.getW());
-        //q1.mul(q2);
-
-
-        /*look = multiplyQuaternion(look,rotAxis);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-
-        look = quaternionLookRotation(fforward, new Vector3f(0,0,-1));
-        look = multiplyQuaternion(look,rotAxis);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);*/
-
-        look = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0,1,0));
-        look = multiplyQuaternion(look,rotAxis);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-
-        /*look = quaternionLookRotation(fforward, new Vector3f(0,-1,0));
-        look = multiplyQuaternion(look,rotAxis);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(fforward, new Vector3f(1,0,0));
-        look = multiplyQuaternion(look,rotAxis);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(fforward, new Vector3f(-1,0,0));
-        look = multiplyQuaternion(look,rotAxis);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-
-
-        look = quaternionLookRotation(fforward, new Vector3f(0,0,1));
-        look = multiplyQuaternion(rotAxis,look);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-
-        look = quaternionLookRotation(fforward, new Vector3f(0,0,-1));
-        look = multiplyQuaternion(rotAxis,look);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(fforward, new Vector3f(0,1,0));
-        look = multiplyQuaternion(rotAxis,look);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(fforward, new Vector3f(0,-1,0));
-        look = multiplyQuaternion(rotAxis,look);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(fforward, new Vector3f(1,0,0));
-        look = multiplyQuaternion(rotAxis,look);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(fforward, new Vector3f(-1,0,0));
-        look = multiplyQuaternion(rotAxis,look);
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);*/
-
-
-
-        /*look = quaternionLookRotation(fforward, new Vector3f(0,-1,0));
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(fforward, new Vector3f(0,1,0));
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(fforward, new Vector3f(-1,0,0));
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);
-        look = quaternionLookRotation(fforward, new Vector3f(1,0,0));
-        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(look))));
-        moveTo(11.21, -9.8, 4.79, look);*/
-
-
-        /*{
-            LogT(TAG, "check swap x-z up Z");
-
-            Quaternion lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0, 0, -1));
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
-            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(0, 0, -1));
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime.getX(), lookAtoAprime.getY(), lookAtoAprime.getZ(), lookAtoAprime.getW());
-
-            lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0, 0, 1)); // this one faces normally
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(0, 0, 1)); // this one faces normally
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-
-            LogT(TAG, "check swap x-z up Y");
-            lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0, -1, 0));
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(0, -1, 0));
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-
-            lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0, 1, 0));
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(0, 1, 0));
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-
-            LogT(TAG, "check swap x-z up X");
-            lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(-1, 0, 0));
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(-1, 0, 0));
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-
-            lookAtoAprime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(1, 0, 0));
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-            lookAtoAprime = quaternionLookRotation(new Vector3f(5.51f - 4.79f, -9.8f + 9.8f, 11.05f - 11.21f), new Vector3f(1, 0, 0));
-            eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(lookAtoAprime))));
-            moveTo(11.21, -9.8, 4.79, lookAtoAprime);
-        }*/
-
-        Point p60;
+        Point p60 = pointA;
         if(kozPattern == 2){
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
-            moveTo(p60.getX(),p60.getY(),p60.getZ(), 0, 0, -0.707f, 0.707f);
+            moveTo(p60, quaternionA);
         }
 
-        /*double[] targetPoint = arEvent();
+        // look a bit down
+        Quaternion lookDown45deg = quaternionRelativeRotate(new Vector3f(0,1,0), -45);
+        moveTo(p60, lookDown45deg);
+
+
+        // read AR
+        double[] targetPoint = arEvent();
 
         Point robotPos = getRobotPosition();
 
         Vector3f forward = new Vector3f((float)(targetPoint[0]), (float)(targetPoint[1]), (float)(targetPoint[2]));
-        Vector3f up = new Vector3f(0,1,0);
 
         Quaternion lookAtTarget = quaternionLookRotation(forward,up);
-        eulersToQuaternion(quaternionToEulers(lookAtTarget));
+        logOrientationDetails(lookAtTarget);
 
-        moveTo(robotPos.getX(),robotPos.getY(),robotPos.getZ(), lookAtTarget.getX(), lookAtTarget.getY(), lookAtTarget.getZ(), lookAtTarget.getW());*/
+        moveTo(robotPos.getX(),robotPos.getY(),robotPos.getZ(), lookAtTarget);
+
         LogT(TAG,"laser");
         api.laserControl(true);
         LogT(TAG,"snap");
@@ -237,93 +104,8 @@ public class YourService extends KiboRpcService {
         api.reportMissionCompletion();
     }
 
-    private Quaternion createFromAxisAngle(float xx, float yy, float zz, float angle) {
-        final String TAG = "[createFromAxisAngle]: ";
-        LogT(TAG,"start");
 
-        float aangle = (float)(angle*Math.PI/180);
-        // Here we calculate the sin( theta / 2) once for optimization
-        float factor = (float)Math.sin( aangle / 2.0f );
-
-        // Calculate the x, y and z of the quaternion
-        float x = xx * factor;
-        float y = yy * factor;
-        float z = zz * factor;
-
-        // Calcualte the w value by cos( theta / 2 )
-        float w = (float)Math.cos( aangle / 2.0f );
-        Quat4f q = new Quat4f(x,y,z,w);
-        q.normalize();
-        Quaternion result = new Quaternion(q.x, q.y, q.z, q.w);
-        LogT(TAG,"created quaternion = " + result.toString());
-        return result;
-    }
-
-    private Quaternion multiplyQuaternion(Quaternion a, Quaternion b) {
-        final String TAG = "[multiplyQuaternion]: ";
-        LogT(TAG,"start");
-
-        float ax = a.getX();
-        float ay = a.getY();
-        float az = a.getZ();
-        float aw = a.getW();
-
-        float bx = b.getX();
-        float by = b.getY();
-        float bz = b.getZ();
-        float bw = b.getW();
-
-        float x,y,z,w;
-        Quat4f q1 = new Quat4f(ax,ay,az,aw);
-        Quat4f q2 = new Quat4f(bx,by,bz,bw);
-
-        q1.mul(q2);
-
-        x = q1.x;
-        y = q1.y;
-        z = q1.z;
-        w = q1.w;
-
-        /*float x = aw * bx + ax * bw + ay * bz - az * by;    // i
-        float y = aw * by - ax * bz + ay * bw + az * bx;    // j
-        float z = aw * bz + ax * by - ay * bx + az * bw;    // k
-        float w = aw * bw - ax * bx - ay * by - az * bz;    // 1*/
-        Quaternion result = new Quaternion(x,y,z,w);
-        LogT(TAG,"multiplied quaternion = " + result.toString());
-        return result;
-    }
-
-
-    private static long getTime(){ return SystemClock.elapsedRealtime(); }
-    private static long getElapsedTime(){ return getTime()-startTime; }
-    private static String getElapsedTimeS(){ return " _Time_: " + String.valueOf(getElapsedTime()); }
-    private static void LogT(String TAG, String msg){ Log.d(TAG,msg + " " + getElapsedTimeS()); }
-
-    private Point getRobotPosition(){
-        final String TAG = "[getRobotPosition]: ";
-        LogT(TAG,"start");
-
-        Kinematics data = api.getTrustedRobotKinematics();
-        Point p = data.getPosition();
-
-        LogT(TAG, "robot position = " + p.toString());
-
-        return p;
-    }
-    private Quaternion getRobotOrientation(){
-        final String TAG = "[getRobotRotation]: ";
-        LogT(TAG,"start");
-
-        Kinematics data = api.getTrustedRobotKinematics();
-
-        Quaternion q = data.getOrientation();
-
-        LogT(TAG, "robot position = " + q.toString());
-
-        return q;
-    }
-    private PointCloud getPointCloud(){ return api.getPointCloudHazCam(); }
-
+    //Utility
     private Point averagePoint(Point from, Point to, double percent){
         final String TAG = "[averagePoint]: ";
         LogT(TAG,"start");
@@ -337,7 +119,6 @@ public class YourService extends KiboRpcService {
 
         return avg;
     }
-
     private void moveTo(double x, double y, double z, float qx, float qy, float qz, float qw){
         final String TAG = "[moveTo]: ";
 
@@ -355,12 +136,13 @@ public class YourService extends KiboRpcService {
         LogT(TAG,"finished");
     }
     private void moveTo(double x, double y, double z, Quaternion q){
+        final String TAG = "[moveTo]: ";
+
         float qx = q.getX();
         float qy = q.getY();
         float qz = q.getZ();
         float qw = q.getW();
 
-        final String TAG = "[moveTo]: ";
 
         Point p = new Point(x,y,z);
         int loopCount = 0;
@@ -375,6 +157,31 @@ public class YourService extends KiboRpcService {
         LogT(TAG,"finished");
 
     }
+    private void moveTo(Point p, Quaternion q){
+        final String TAG = "[moveTo]: ";
+
+        double x = p.getX();
+        double y = p.getY();
+        double z = p.getZ();
+        float qx = q.getX();
+        float qy = q.getY();
+        float qz = q.getZ();
+        float qw = q.getW();
+
+
+        int loopCount = 0;
+        Result result;
+        LogT(TAG, "start " + x + "," + y + "," + z + " | " + qx + "," + qy + "," + qz + "," + qw);
+
+        do {
+            result = api.moveTo(p,q,true);
+            loopCount++;
+        } while(!result.hasSucceeded() && loopCount < LOOP_MAX);
+
+        LogT(TAG,"finished");
+
+    }
+
     private void setFlashOn(boolean status, int brightnessIndex){
         final String TAG = "[setFlashOn]: ";
 
@@ -385,13 +192,7 @@ public class YourService extends KiboRpcService {
         if(status == true){
             api.flashlightControlFront(brightness);
             LogT(TAG, "brightness = " + String.valueOf(brightness));
-            try{
-                LogT(TAG, "sleeping");
-                Thread.sleep(1000);
-            }catch (InterruptedException e){
-                LogT(TAG, "interrupted");
-                e.printStackTrace();
-            }
+            wait(1000);
         }else{
             api.flashlightControlFront(0f);
             LogT(TAG, "off");
@@ -399,7 +200,21 @@ public class YourService extends KiboRpcService {
         LogT(TAG, "done");
         return;
     }
+    private void wait(int milliseconds){
+        final String TAG = "[wait]: ";
+        LogT(TAG, "start");
 
+        try{
+            LogT(TAG, "waiting for " + milliseconds + " ms");
+            Thread.sleep(milliseconds);
+        }catch (InterruptedException e){
+            LogT(TAG, "interrupted");
+            e.printStackTrace();
+        }
+        return;
+    }
+
+    //Image Processing
     private Rect cropImage(double xPercent, double yPercent,double cropPercent){
         final String TAG = "[cropImage]: ";
 
@@ -469,6 +284,8 @@ public class YourService extends KiboRpcService {
 
         return undistortedPic;
     }
+
+    //QR
     private float[] getQRDataContent(String qrData){
         final String TAG = "[getQRDataContent] :";
         LogT(TAG, "start");
@@ -501,7 +318,9 @@ public class YourService extends KiboRpcService {
             setFlashOn(true,(loopCount+1)%3);
             try{
                 LogT(TAG, "reading qr code");
+                wait(1000);
                 bitmap = getNavCamImage();
+                wait(1000);
                 QRCodeReader reader = new QRCodeReader();
                 com.google.zxing.Result result = reader.decode(bitmap,hints);
                 qrData = result.getText();
@@ -527,6 +346,7 @@ public class YourService extends KiboRpcService {
         return null;
     }
 
+    //Quaternion
     private double[] quaternionToEulers(Quaternion q) {
         final String TAG = "[quaternionToEulers]: ";
         LogT(TAG,"start");
@@ -583,6 +403,7 @@ public class YourService extends KiboRpcService {
 
         return q;
     }
+
     private double[] eulersDegToRad(double[] degs){
         final String TAG = "[eulersDegToRad]: ";
         LogT(TAG,"start");
@@ -604,8 +425,82 @@ public class YourService extends KiboRpcService {
         return degs;
     }
 
-    private static Quaternion quaternionLookRotation(Vector3f forward, Vector3f up){
+    private void logOrientationDetails(Quaternion q){
+        eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(q))));
+        return;
+    }
+
+    private Quaternion createFromAxisAngle(float xx, float yy, float zz, float angle) {
+        final String TAG = "[createFromAxisAngle]: ";
+        LogT(TAG,"start");
+
+        float aangle = (float)(angle*Math.PI/180);
+        // Here we calculate the sin( theta / 2) once for optimization
+        float factor = (float)Math.sin( aangle / 2.0f );
+
+        // Calculate the x, y and z of the quaternion
+        float x = xx * factor;
+        float y = yy * factor;
+        float z = zz * factor;
+
+        // Calcualte the w value by cos( theta / 2 )
+        float w = (float)Math.cos( aangle / 2.0f );
+        Quat4f q = new Quat4f(x,y,z,w);
+        q.normalize();
+        Quaternion result = new Quaternion(q.x, q.y, q.z, q.w);
+        LogT(TAG,"created quaternion = " + result.toString());
+        return result;
+    }
+    private Quaternion multiplyQuaternion(Quaternion a, Quaternion b) {
+        final String TAG = "[multiplyQuaternion]: ";
+        LogT(TAG,"start");
+
+        float ax = a.getX();
+        float ay = a.getY();
+        float az = a.getZ();
+        float aw = a.getW();
+
+        float bx = b.getX();
+        float by = b.getY();
+        float bz = b.getZ();
+        float bw = b.getW();
+
+        float x,y,z,w;
+        Quat4f q1 = new Quat4f(ax,ay,az,aw);
+        Quat4f q2 = new Quat4f(bx,by,bz,bw);
+
+        q1.mul(q2);
+
+        x = q1.x;
+        y = q1.y;
+        z = q1.z;
+        w = q1.w;
+
+        /*float x = aw * bx + ax * bw + ay * bz - az * by;    // i
+        float y = aw * by - ax * bz + ay * bw + az * bx;    // j
+        float z = aw * bz + ax * by - ay * bx + az * bw;    // k
+        float w = aw * bw - ax * bx - ay * by - az * bz;    // 1*/
+        Quaternion result = new Quaternion(x,y,z,w);
+        LogT(TAG,"multiplied quaternion = " + result.toString());
+        return result;
+    }
+
+    private Quaternion quaternionLookRotation(Vector3f forward, Vector3f up){
         final String TAG = "[quaternionLookRotation]: ";
+        LogT(TAG,"start");
+
+        Quaternion look = quaternionLookRotation0(forward, up);
+        Quaternion rotAxis = createFromAxisAngle(0,1,0, -90);
+
+        look = multiplyQuaternion(look,rotAxis);
+        logOrientationDetails(look);
+
+        LogT(TAG,"finished");
+
+        return look;
+    }
+    private Quaternion quaternionLookRotation0(Vector3f forward, Vector3f up){
+        final String TAG = "[quaternionLookRotation0]: ";
         LogT(TAG,"start");
         forward.normalize();
 
@@ -671,6 +566,41 @@ public class YourService extends KiboRpcService {
         return quaternion;
     }
 
+    private Vector3f getForwardVector(){
+        final String TAG = "[getForwardVector]: ";
+        LogT(TAG,"start");
+
+        double[] eulers = quaternionToEulers(getRobotOrientation());
+
+        float pitch = (float)eulers[1];
+        float yaw = (float)eulers[2];
+
+        float x = (float)(Math.cos(pitch)*Math.cos(yaw));
+        float y = (float)(Math.cos(pitch)*Math.sin(yaw));
+        float z = (float)(Math.sin(pitch));
+
+        LogT(TAG, "forward vector = " + x + ", " + y + ", " + z);
+
+        return new Vector3f(x,y,z);
+    }
+
+    private Quaternion quaternionRelativeRotate(Vector3f axis,float angle){
+        final String TAG = "[relativeRotate]: ";
+        LogT(TAG,"start");
+
+        Vector3f forward = getForwardVector();
+        Quaternion look = quaternionLookRotation(forward, up);
+        Quaternion rotAxis = createFromAxisAngle(0,1,0, angle);
+
+        look = multiplyQuaternion(look,rotAxis);
+        logOrientationDetails(look);
+
+        LogT(TAG,"finished");
+
+        return look;
+    }
+
+    //AR
     private double[] getMarkerCenter(Mat corner){
         final String TAG = "[getMarkerCenter]: ";
         LogT(TAG,"start");
@@ -753,15 +683,15 @@ public class YourService extends KiboRpcService {
         int loopCount = 0;
         double[] result = new double[3];
 
-
-
         LogT(TAG, "start");
 
         while (arContent == 0 && loopCount < LOOP_MAX){
             LogT(TAG, "loopCount " + loopCount);
 
             Rect roi = new Rect();
+            wait(1000);
             Mat image = undistort(api.getMatNavCam(),roi);
+            wait(1000);
             Mat ids = new Mat();
             Dictionary dict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
             List<Mat> corners = new ArrayList<>();
@@ -786,7 +716,6 @@ public class YourService extends KiboRpcService {
             {
                 LogT(TAG,"an error occurred while reading ar");
             }
-            //////////////////////////////////////////////////////////////////////////////////////////////////////
             LogT(TAG, "failed to read ar");
             long stop_time = SystemClock.elapsedRealtime();
 
@@ -795,7 +724,36 @@ public class YourService extends KiboRpcService {
         return result;
     }
 
+    //Misc
+    private static long getTime(){ return SystemClock.elapsedRealtime(); }
+    private static long getElapsedTime(){ return getTime()-startTime; }
+    private static String getElapsedTimeS(){ return " _Time_: " + String.valueOf(getElapsedTime()); }
+    private static void LogT(String TAG, String msg){ Log.d(TAG,msg + " " + getElapsedTimeS()); }
 
+    private Point getRobotPosition(){
+        final String TAG = "[getRobotPosition]: ";
+        LogT(TAG,"start");
+
+        Kinematics data = api.getTrustedRobotKinematics();
+        Point p = data.getPosition();
+
+        LogT(TAG, "robot position = " + p.toString());
+
+        return p;
+    }
+    private Quaternion getRobotOrientation(){
+        final String TAG = "[getRobotRotation]: ";
+        LogT(TAG,"start");
+
+        Kinematics data = api.getTrustedRobotKinematics();
+
+        Quaternion q = data.getOrientation();
+
+        LogT(TAG, "robot position = " + q.toString());
+
+        return q;
+    }
+    private PointCloud getPointCloud(){ return api.getPointCloudHazCam(); }
 
 }
 
