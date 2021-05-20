@@ -49,7 +49,7 @@ public class YourService extends KiboRpcService {
     final int NAV_CAM_HEIGHT = 960;
     final Point pointA = new Point(11.21, -9.8, 4.79);
     final Quaternion quaternionA = new Quaternion(0, 0, -0.707f, 0.707f);
-    final Vector3f up = new Vector3f(0,1,0);
+    final Vector3f up = new Vector3f(0,-1,0);
 
     static long startTime = 0;
 
@@ -68,40 +68,44 @@ public class YourService extends KiboRpcService {
         int kozPattern = (int)qrData[0];
 
         // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
-        Quaternion lookAToAPrime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), new Vector3f(0,1,0));
-        moveTo(11.21, -9.8, 4.79, lookAToAPrime);
+
+        //Quaternion lookAToAPrime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), up);
+        //moveTo(11.21, -9.8, 4.79, lookAToAPrime);
 
         Point p60 = pointA;
+        wait(1500);
         if(kozPattern == 2){
+            // look a bit down
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
-            moveTo(p60, quaternionA);
+            Quaternion lookDown = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -35);
+            moveTo(p60, lookDown);
         }
-
-        // look a bit down
-        Quaternion lookDown45deg = quaternionRelativeRotate(new Vector3f(0,1,0), -45);
-        moveTo(p60, lookDown45deg);
-
 
         // read AR
         double[] targetPoint = arEvent();
-
-        Point robotPos = getRobotPosition();
 
         Vector3f forward = new Vector3f((float)(targetPoint[0]), (float)(targetPoint[1]), (float)(targetPoint[2]));
 
         Quaternion lookAtTarget = quaternionLookRotation(forward,up);
         logOrientationDetails(lookAtTarget);
 
-        moveTo(robotPos.getX(),robotPos.getY(),robotPos.getZ(), lookAtTarget);
+        moveTo(p60, lookAtTarget);
 
-        LogT(TAG,"laser");
+        LogT(TAG,"laser on");
         api.laserControl(true);
         LogT(TAG,"snap");
         api.takeSnapshot();
+        LogT(TAG,"laser off");
+        api.laserControl(false);
 
+        LogT(TAG, "going to pointB");
+        goToB_event();
+
+        LogT(TAG, "reporting mission completion");
+        api.reportMissionCompletion();
         LogT(TAG, "successful");
 
-        api.reportMissionCompletion();
+
     }
 
 
@@ -180,6 +184,23 @@ public class YourService extends KiboRpcService {
 
         LogT(TAG,"finished");
 
+    }
+
+    private void goToB_event(){
+        final String TAG = "[GoB]: ";
+        Log.d(TAG, "start");
+
+        Log.d(TAG, "Move to entrance");
+        moveTo(10.505,-9.2, 4.5, 0, 0, -0.707f, 0.707f);
+
+        Log.d(TAG, "Pass through KOZ");
+        moveTo(10.505, -8, 4.5, 0, 0, -0.707f, 0.707f);
+
+        Log.d(TAG, "Go to point B");
+        moveTo(10.6, -8, 4.5, 0, 0, -0.707f, 0.707f);
+
+        Log.d(TAG, "end");
+        return;
     }
 
     private void setFlashOn(boolean status, int brightnessIndex){
@@ -566,30 +587,26 @@ public class YourService extends KiboRpcService {
         return quaternion;
     }
 
-    private Vector3f getForwardVector(){
-        final String TAG = "[getForwardVector]: ";
-        LogT(TAG,"start");
-
-        double[] eulers = quaternionToEulers(getRobotOrientation());
-
-        float pitch = (float)eulers[1];
-        float yaw = (float)eulers[2];
-
-        float x = (float)(Math.cos(pitch)*Math.cos(yaw));
-        float y = (float)(Math.cos(pitch)*Math.sin(yaw));
-        float z = (float)(Math.sin(pitch));
-
-        LogT(TAG, "forward vector = " + x + ", " + y + ", " + z);
-
-        return new Vector3f(x,y,z);
-    }
-
     private Quaternion quaternionRelativeRotate(Vector3f axis,float angle){
         final String TAG = "[relativeRotate]: ";
         LogT(TAG,"start");
 
-        Vector3f forward = getForwardVector();
-        Quaternion look = quaternionLookRotation(forward, up);
+        Quaternion look = getRobotOrientation();
+        look = getRobotOrientation();
+        Quaternion rotAxis = createFromAxisAngle(0,1,0, angle);
+
+        look = multiplyQuaternion(look,rotAxis);
+        logOrientationDetails(look);
+
+        LogT(TAG,"finished");
+
+        return look;
+    }
+    private Quaternion quaternionRelativeRotate(Quaternion startingQ, Vector3f axis,float angle){
+        final String TAG = "[relativeRotate]: ";
+        LogT(TAG,"start");
+
+        Quaternion look = startingQ;
         Quaternion rotAxis = createFromAxisAngle(0,1,0, angle);
 
         look = multiplyQuaternion(look,rotAxis);
@@ -642,25 +659,40 @@ public class YourService extends KiboRpcService {
         final String TAG = "[getARCenterPoint]: ";
         LogT(TAG,"start");
 
+        double[] result = new double[3];
+        /*if(pointFromNavCam[0] < 1280/2-556/2 || pointFromNavCam[0] > 1280/2+556/2){
+            LogT(TAG,"x out of range");
+            return result;
+        }
+        if(pointFromNavCam[1] < 1280/2-417/2 || pointFromNavCam[1] > 1280/2+417/2){
+            LogT(TAG,"y out of range");
+            return result;
+        }*/
+
+        // 0->556, 0->417
+
+
         int loopCount = 0;
         while(loopCount < LOOP_MAX){
             try{
                 LogT(TAG,"getting point cloud hazcam");
                 PointCloud pointCloud = api.getPointCloudHazCam();
                 LogT(TAG,"get width");
-                int pointCloudWidth = pointCloud.getWidth(); // 224 : 1280
+                int pointCloudWidth = pointCloud.getWidth(); // 224 : 556
                 LogT(TAG,"get height");
-                int pointCloudHeight = pointCloud.getHeight(); // 171 : 960
+                int pointCloudHeight = pointCloud.getHeight(); // 171 : 417
+
                 LogT(TAG,"get point array");
                 Point[] pointArray = pointCloud.getPointArray();
+
                 LogT(TAG,"pcX");
-                int pointCloudX = (int)(pointFromNavCam[0]/NAV_CAM_WIDTH*pointCloudWidth);
+                int pointCloudX = (int)(pointFromNavCam[0]/556*pointCloudWidth);
                 LogT(TAG,"pcY");
-                int pointCloudY = (int)(pointFromNavCam[1]/NAV_CAM_HEIGHT*pointCloudHeight);
+                int pointCloudY = (int)(pointFromNavCam[1]/417*pointCloudHeight);
+
                 LogT(TAG,"tgtPoint");
                 Point targetPoint = pointArray[pointCloudY*pointCloudWidth + pointCloudX];
                 LogT(TAG,  "targetPoint = " + targetPoint.toString());
-                double[] result = new double[3];
                 result[0] = targetPoint.getX(); // x
                 result[1] = targetPoint.getY(); // y
                 result[2] = targetPoint.getZ(); // z
@@ -690,7 +722,7 @@ public class YourService extends KiboRpcService {
 
             Rect roi = new Rect();
             wait(1000);
-            Mat image = undistort(api.getMatNavCam(),roi);
+            Mat image = new Mat(api.getMatNavCam(), cropImage(23,23,43.4));
             wait(1000);
             Mat ids = new Mat();
             Dictionary dict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
@@ -754,6 +786,8 @@ public class YourService extends KiboRpcService {
         return q;
     }
     private PointCloud getPointCloud(){ return api.getPointCloudHazCam(); }
+
+
 
 }
 
