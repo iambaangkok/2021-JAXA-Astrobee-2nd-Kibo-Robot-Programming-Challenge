@@ -74,22 +74,26 @@ public class YourService extends KiboRpcService {
 
         Point p60 = pointA;
         wait(1500);
+        Quaternion lookTowardsAR = new Quaternion(1,0,0,0);
         if(kozPattern == 2){
             // look a bit down
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
-            Quaternion lookDown = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -35);
-            moveTo(p60, lookDown);
+            lookTowardsAR = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -35);
+            moveTo(p60, lookTowardsAR);
         }
 
         // read AR
-        double[] targetPoint = arEvent();
+        double[] turnAngle = new double[3];
+        int loopCount = 0;
+        do{
+            turnAngle = arEvent(10);
 
-        Vector3f forward = new Vector3f((float)(targetPoint[0]), (float)(targetPoint[1]), (float)(targetPoint[2]));
+            Quaternion lookAtTargetY = quaternionRelativeRotate(lookTowardsAR, new Vector3f(0,1,0), (float)turnAngle[1]);
+            Quaternion lookAtTargetYX = quaternionRelativeRotate(lookAtTargetY, new Vector3f(0,0,1), (float)turnAngle[0]);
 
-        Quaternion lookAtTarget = quaternionLookRotation(forward,up);
-        logOrientationDetails(lookAtTarget);
-
-        moveTo(p60, lookAtTarget);
+            moveTo(p60, lookAtTargetYX);
+            loopCount++;
+        }while(turnAngle[2] != 1 && loopCount < LOOP_MAX);
 
         LogT(TAG,"laser on");
         api.laserControl(true);
@@ -107,7 +111,6 @@ public class YourService extends KiboRpcService {
 
 
     }
-
 
     //Utility
     private Point averagePoint(Point from, Point to, double percent){
@@ -683,7 +686,8 @@ public class YourService extends KiboRpcService {
                 int pointCloudHeight = pointCloud.getHeight(); // 171 : 417
 
                 LogT(TAG,"get point array");
-                Point[] pointArray = pointCloud.getPointArray();
+                Point[] pointArray = new Point[pointCloudWidth*pointCloudHeight];
+                pointArray = pointCloud.getPointArray();
 
                 LogT(TAG,"pcX");
                 int pointCloudX = (int)(pointFromNavCam[0]/556*pointCloudWidth);
@@ -708,7 +712,57 @@ public class YourService extends KiboRpcService {
         return null;
     }
 
-    public double[] arEvent(){
+    private int[] getPixelOffsetFromCenter(double[] arCenter, double distanceThreshold){
+        final String TAG = "[getPixelOffsetFromCenter]: ";
+        LogT(TAG,"start");
+
+        int[] result = new int[3];
+        int centerX = NAV_CAM_WIDTH/2;
+        int centerY = NAV_CAM_HEIGHT/2;
+
+        result[0] = (int)arCenter[0]-centerX;
+        result[1] = (int)arCenter[1]-centerY;
+
+        double distanceFromCenter = Math.sqrt(result[0]*result[0] + result[1]*result[1]);
+        LogT(TAG,"distance from center = " + distanceFromCenter);
+        if(distanceFromCenter <= distanceThreshold){
+            result[2] = 1;
+        }else{
+            result[2] = 0;
+        }
+
+        LogT(TAG, "pixel offset = " + result[0] + "," + result[1] + " : " + result[2]);
+
+        return result;
+    }
+    private double[] pixelOffsetToAngleOffset(int[] pixelOffset, double angleThreshold){
+        final String TAG = "[pixelOffsetToAngleOffset]: ";
+        LogT(TAG,"start");
+
+        double[] result = new double[3];
+
+        double anglePerPixelX = 130.0/NAV_CAM_WIDTH;
+        double anglePerPixelY = 130.0/NAV_CAM_HEIGHT;
+
+        LogT(TAG,"angle per pixel = " + anglePerPixelX + "," + anglePerPixelY);
+
+        result[0] = pixelOffset[0]*anglePerPixelX;
+        result[1] = pixelOffset[1]*anglePerPixelY;
+
+        double angleFromCenter = Math.sqrt(result[0]*result[0] + result[1]*result[1]);
+        LogT(TAG,"angle from center = " + angleFromCenter);
+        if(angleFromCenter <= angleThreshold){
+            result[2] = 1;
+        }else{
+            result[2] = 0;
+        }
+
+        LogT(TAG, "angle offset = " + result[0] + "," + result[1] + " : " + result[2]);
+
+        return result;
+    }
+
+    public double[] arEvent(double angleThreshold){ //returns turn angle around y, around z, boolean:is within angleThreshold
         final String TAG = "[arEvent]: ";
 
         int arContent = 0;
@@ -722,7 +776,7 @@ public class YourService extends KiboRpcService {
 
             Rect roi = new Rect();
             wait(1000);
-            Mat image = new Mat(api.getMatNavCam(), cropImage(23,23,43.4));
+            Mat image = api.getMatNavCam();//new Mat(api.getMatNavCam(), cropImage(23,23,43.4));
             wait(1000);
             Mat ids = new Mat();
             Dictionary dict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
@@ -737,15 +791,16 @@ public class YourService extends KiboRpcService {
                 }
 
                 double[] arCenter = getARCenter(corners);
-                result = getARCenterPoint(arCenter);
+                int[] pixelOffset = getPixelOffsetFromCenter(arCenter,30);
+                result = pixelOffsetToAngleOffset(pixelOffset,angleThreshold);
+
 
                 arContent = (int) ids.get(0, 0)[0];
 
                 LogT(TAG,"ar read successfully");
                 return result;
             }
-            catch (Exception e)
-            {
+            catch (Exception e){
                 LogT(TAG,"an error occurred while reading ar");
             }
             LogT(TAG, "failed to read ar");
