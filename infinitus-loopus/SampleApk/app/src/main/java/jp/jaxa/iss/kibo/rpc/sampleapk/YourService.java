@@ -35,6 +35,7 @@ import java.util.Hashtable;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.List;
+
 import javax.vecmath.Vector3f;
 import javax.vecmath.Quat4f;
 
@@ -90,12 +91,13 @@ public class YourService extends KiboRpcService {
             turnAngle[2] = 0;
             turnAngle = arEvent(9);
 
-            Quaternion lookAtTargetY = quaternionRelativeRotate(looking, new Vector3f(0,1,0), (float)turnAngle[1]);
-            Quaternion lookAtTargetYX = quaternionRelativeRotate(lookAtTargetY, new Vector3f(0,0,1), (float)turnAngle[0]);
+            Quaternion lookAtTargetY = quaternionRelativeRotate(looking, new Vector3f(0,1,0), (float)-turnAngle[1]);
+            Quaternion lookAtTargetYX = quaternionRelativeRotate(lookAtTargetY, new Vector3f(0,0,1), (float)-turnAngle[0]);
 
             if(turnAngle[2] == 0){
                 moveTo(p60, lookAtTargetYX);
                 looking = lookAtTargetYX;
+                wait(10000);
             }
 
             loopCount++;
@@ -377,9 +379,8 @@ public class YourService extends KiboRpcService {
             setFlashOn(true,(loopCount+1)%3);
             try{
                 LogT(TAG, "reading qr code");
-                wait(1000);
+                wait(15000);
                 bitmap = getNavCamImage();
-                wait(1000);
                 QRCodeReader reader = new QRCodeReader();
                 com.google.zxing.Result result = reader.decode(bitmap,hints);
                 qrData = result.getText();
@@ -681,7 +682,7 @@ public class YourService extends KiboRpcService {
         double centerX = 0, centerY = 0;
 
         for(int i = 0 ; i < 4; ++i){
-            double[] sumXY = getMarkerCenter(undistortPoints(corners.get(i)));
+            double[] sumXY = getMarkerCenter(corners.get(i));
             centerX += sumXY[0];
             centerY += sumXY[1];
         }
@@ -803,17 +804,19 @@ public class YourService extends KiboRpcService {
         int loopCount = 0;
         double[] result = new double[3];
 
+        Dictionary dict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
+
         LogT(TAG, "start");
 
         while (arContent == 0 && loopCount < LOOP_MAX){
             LogT(TAG, "loopCount " + loopCount);
 
             Rect roi = new Rect();
-            wait(2000);
-            Mat image = api.getMatNavCam();
-            wait(2000);
+            Mat image = new Mat();
+            wait(15000);
+            image = api.getMatNavCam();
+
             Mat ids = new Mat();
-            Dictionary dict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
             List<Mat> corners = new ArrayList<>();
 
             try{
@@ -826,9 +829,12 @@ public class YourService extends KiboRpcService {
 
 
                 double[] arCenter = getARCenter(corners);
+                Mat atCenterMat = new Mat(1,1, CvType.CV_32FC2);
+                atCenterMat.put(0,0, arCenter);
+                undistortPoints(atCenterMat);
+
                 int[] pixelOffset = getPixelOffsetFromCenter(arCenter,30);
                 result = pixelOffsetToAngleOffset(pixelOffset,angleThreshold);
-
 
                 arContent = (int) ids.get(0, 0)[0];
 
