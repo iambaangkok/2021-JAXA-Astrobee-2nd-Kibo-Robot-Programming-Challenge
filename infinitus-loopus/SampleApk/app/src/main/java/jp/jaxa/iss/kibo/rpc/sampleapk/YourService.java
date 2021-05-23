@@ -83,17 +83,23 @@ public class YourService extends KiboRpcService {
         }
 
         // read AR
-        double[] turnAngle = new double[3];
+        Quaternion looking = lookTowardsAR;
+        double[] turnAngle = new double[3]; // x, y, threshold
         int loopCount = 0;
         do{
-            turnAngle = arEvent(10);
+            turnAngle[2] = 0;
+            turnAngle = arEvent(9);
 
-            Quaternion lookAtTargetY = quaternionRelativeRotate(lookTowardsAR, new Vector3f(0,1,0), (float)turnAngle[1]);
+            Quaternion lookAtTargetY = quaternionRelativeRotate(looking, new Vector3f(0,1,0), (float)turnAngle[1]);
             Quaternion lookAtTargetYX = quaternionRelativeRotate(lookAtTargetY, new Vector3f(0,0,1), (float)turnAngle[0]);
 
-            moveTo(p60, lookAtTargetYX);
+            if(turnAngle[2] == 0){
+                moveTo(p60, lookAtTargetYX);
+                looking = lookAtTargetYX;
+            }
+
             loopCount++;
-        }while(turnAngle[2] != 1 && loopCount < LOOP_MAX);
+        }while(turnAngle[2] == 0 && loopCount < LOOP_MAX);
 
         LogT(TAG,"laser on");
         api.laserControl(true);
@@ -278,6 +284,39 @@ public class YourService extends KiboRpcService {
 
     private Mat undistort(Mat sourceImage, Rect roi){
         final String TAG = "[undistortImage]: ";
+            LogT(TAG, "start");
+        double[][] navCamIntrinsics = api.getNavCamIntrinsics();
+            LogT(TAG, "got navCamIntrinsics " + Arrays.deepToString(navCamIntrinsics));
+
+        int row = 0, col = 0;
+        Mat cameraMat = new Mat(3, 3, CvType.CV_32FC1);
+        cameraMat.put(row, col, navCamIntrinsics[0]);
+            LogT(TAG, "cameraMat put " + cameraMat.toString() + " " + cameraMat.dump());
+
+        row = 0; col = 0;
+        Mat distortionCoeff = new Mat(1, 5, CvType.CV_32FC1);
+        distortionCoeff.put(row,col,navCamIntrinsics[1]);
+            LogT(TAG, "distortCoeff put " + distortionCoeff.toString() + " " + distortionCoeff.dump());
+
+        Mat undistortedPic = new Mat(1280, 960, CvType.CV_8UC1);
+
+            LogT(TAG, sourceImage.size().toString());
+            LogT(TAG,  cameraMat.size().toString());
+            LogT(TAG,  distortionCoeff.size().toString());
+        Size sourceImageSize = sourceImage.size();
+
+        Mat newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat, distortionCoeff, sourceImageSize, 1, sourceImageSize, roi);
+            LogT(TAG, "got optimalNewCamMat " + newCameraMat.dump());
+            LogT(TAG, newCameraMat.size().toString());
+
+        Imgproc.undistort(sourceImage,undistortedPic,cameraMat,distortionCoeff,newCameraMat);
+            LogT(TAG, "finished undistort");
+
+        return undistortedPic;
+    }
+
+    private Mat undistortPoints(Mat points){
+        final String TAG = "[undistortPoints]: ";
         LogT(TAG, "start");
         double[][] navCamIntrinsics = api.getNavCamIntrinsics();
         LogT(TAG, "got navCamIntrinsics " + Arrays.deepToString(navCamIntrinsics));
@@ -292,21 +331,17 @@ public class YourService extends KiboRpcService {
         distortionCoeff.put(row,col,navCamIntrinsics[1]);
         LogT(TAG, "distortCoeff put " + distortionCoeff.toString() + " " + distortionCoeff.dump());
 
-        Mat undistortedPic = new Mat(1280, 960, CvType.CV_8UC1);
+        Mat undistortedPoints = new Mat(points.rows(), points.cols(), points.type());
 
-        LogT(TAG, sourceImage.size().toString());
+        LogT(TAG, points.size().toString());
         LogT(TAG,  cameraMat.size().toString());
         LogT(TAG,  distortionCoeff.size().toString());
-        Size sourceImageSize = sourceImage.size();
 
-        Mat newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat, distortionCoeff, sourceImageSize, 1, sourceImageSize, roi);
-        LogT(TAG, "got optimalNewCamMat " + newCameraMat.dump());
-        LogT(TAG, newCameraMat.size().toString());
 
-        Imgproc.undistort(sourceImage,undistortedPic,cameraMat,distortionCoeff,newCameraMat);
-        LogT(TAG, "finished undistort");
+        Imgproc.undistortPoints(points,undistortedPoints,cameraMat,distortionCoeff, new Mat(), cameraMat);
+        LogT(TAG, "finished undistort points" + undistortedPoints.dump());
 
-        return undistortedPic;
+        return undistortedPoints;
     }
 
     //QR
@@ -646,7 +681,7 @@ public class YourService extends KiboRpcService {
         double centerX = 0, centerY = 0;
 
         for(int i = 0 ; i < 4; ++i){
-            double[] sumXY = getMarkerCenter(corners.get(i));
+            double[] sumXY = getMarkerCenter(undistortPoints(corners.get(i)));
             centerX += sumXY[0];
             centerY += sumXY[1];
         }
@@ -741,13 +776,12 @@ public class YourService extends KiboRpcService {
 
         double[] result = new double[3];
 
-        double anglePerPixelX = 130.0/NAV_CAM_WIDTH;
-        double anglePerPixelY = 130.0/NAV_CAM_HEIGHT;
+        double anglePerPixel = 130.0/Math.sqrt(Math.pow(NAV_CAM_WIDTH,2) + Math.pow(NAV_CAM_HEIGHT,2));
 
-        LogT(TAG,"angle per pixel = " + anglePerPixelX + "," + anglePerPixelY);
+        LogT(TAG,"angle per pixel = " + anglePerPixel + "," + anglePerPixel);
 
-        result[0] = pixelOffset[0]*anglePerPixelX;
-        result[1] = pixelOffset[1]*anglePerPixelY;
+        result[0] = pixelOffset[0]*anglePerPixel;
+        result[1] = pixelOffset[1]*anglePerPixel;
 
         double angleFromCenter = Math.sqrt(result[0]*result[0] + result[1]*result[1]);
         LogT(TAG,"angle from center = " + angleFromCenter);
@@ -775,9 +809,9 @@ public class YourService extends KiboRpcService {
             LogT(TAG, "loopCount " + loopCount);
 
             Rect roi = new Rect();
-            wait(1000);
-            Mat image = api.getMatNavCam();//new Mat(api.getMatNavCam(), cropImage(23,23,43.4));
-            wait(1000);
+            wait(2000);
+            Mat image = api.getMatNavCam();
+            wait(2000);
             Mat ids = new Mat();
             Dictionary dict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
             List<Mat> corners = new ArrayList<>();
@@ -789,6 +823,7 @@ public class YourService extends KiboRpcService {
                 for (int i = 0; i < corners.size(); i++) {
                     LogT(TAG, "corners[" + i + "]=" + corners.get(i).dump());
                 }
+
 
                 double[] arCenter = getARCenter(corners);
                 int[] pixelOffset = getPixelOffsetFromCenter(arCenter,30);
