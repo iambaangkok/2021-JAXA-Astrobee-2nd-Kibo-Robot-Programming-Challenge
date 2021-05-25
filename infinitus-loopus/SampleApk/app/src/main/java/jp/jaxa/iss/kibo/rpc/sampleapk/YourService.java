@@ -74,35 +74,60 @@ public class YourService extends KiboRpcService {
         //moveTo(11.21, -9.8, 4.79, lookAToAPrime);
 
         Point p60 = pointA;
+        Point p60yminus = pointA;
         wait(1500);
         Quaternion lookTowardsAR = new Quaternion(1,0,0,0);
         if(kozPattern == 2){
             // look a bit down
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
+            p60yminus = offsetPoint(p60,0,-0.2,0);
             lookTowardsAR = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -35);
-            moveTo(p60, lookTowardsAR);
+            moveTo(p60yminus, lookTowardsAR);
         }
 
         // read AR
         Quaternion looking = lookTowardsAR;
-        double[] turnAngle = new double[3]; // x, y, threshold
-        int loopCount = 0;
-        do{
-            turnAngle[2] = 0;
-            turnAngle = arEvent(9);
+        double[] arData = new double[6]; // angle offset x, y, angle threshold, pixel offset x, y, distancePerPixel
 
-            Quaternion lookAtTargetY = quaternionRelativeRotate(looking, new Vector3f(0,1,0), (float)-turnAngle[1]);
-            Quaternion lookAtTargetYX = quaternionRelativeRotate(lookAtTargetY, new Vector3f(0,0,1), (float)-turnAngle[0]);
+        arData[2] = 0;
+        arData = arEvent(10);
 
-            if(turnAngle[2] == 0){
-                moveTo(p60, lookAtTargetYX);
-                looking = lookAtTargetYX;
-                wait(10000);
-            }
+        // determine whether to aim by turning or moving
+        Point pAimAR = p60yminus;
 
-            loopCount++;
-        }while(turnAngle[2] == 0 && loopCount < LOOP_MAX);
+        if(arData[2] == 0){ // turn
+            LogT(TAG,"aim by turning towards target");
+            Quaternion lookAtTargetY = quaternionRelativeRotate(looking, new Vector3f(0,1,0), (float)-arData[1]);
+            Quaternion lookAtTargetYX = quaternionRelativeRotate(lookAtTargetY, new Vector3f(0,0,1), (float)-arData[0]);
 
+            moveTo(p60yminus, lookAtTargetYX);
+            looking = lookAtTargetYX;
+            wait(10000);
+        }else{ // move
+            LogT(TAG,"aim by moving towards target");
+            double[] eulers = quaternionToEulers(looking);
+
+            double dx = Math.cos(eulers[1]) * Math.sin(eulers[2]) * (-arData[4]) * arData[5];
+            double dy = Math.cos(eulers[1]) * Math.cos(eulers[2]) * (-arData[4]) * arData[5];
+            double dz = Math.sin(eulers[1]) * (-arData[4]) * arData[5];
+
+            double dx2 = Math.sin(eulers[2]) * (-arData[3]) * arData[5];
+            double dy2 = Math.cos(eulers[2]) * (-arData[3]) * arData[5];
+            LogT(TAG, "dx dx2, dy dy2, dz = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz);
+
+            pAimAR = offsetPoint(p60yminus,dx+dx2, dy+dy2, dz);
+
+            moveTo(pAimAR, looking);
+            wait(5000);
+
+            /*double dx = -Math.sin(eulers[2]) * (arData[3]) * arData[5];
+
+            double dy = Math.cos(eulers[2]) * Math.cos(eulers[1]) * (arData[4]) * arData[5];
+            double dz = Math.sin(eulers[1]) * (arData[4]) * arData[5];*/
+        }
+
+
+        // laser, snap, finish
         LogT(TAG,"laser on");
         api.laserControl(true);
         LogT(TAG,"snap");
@@ -133,6 +158,19 @@ public class YourService extends KiboRpcService {
         LogT(TAG,"avg = " + avg.toString());
 
         return avg;
+    }
+    private Point offsetPoint(Point start, double dx, double dy, double dz){
+        final String TAG = "[offsetPoint]: ";
+        LogT(TAG,"start");
+
+        double x = start.getX() + dx;
+        double y = start.getY() + dy;
+        double z = start.getZ() + dz;
+
+        Point offset = new Point(x,y,z);
+        LogT(TAG,"offset = " + offset.toString());
+
+        return offset;
     }
     private void moveTo(double x, double y, double z, float qx, float qy, float qz, float qw){
         final String TAG = "[moveTo]: ";
@@ -170,7 +208,6 @@ public class YourService extends KiboRpcService {
         } while(!result.hasSucceeded() && loopCount < LOOP_MAX);
 
         LogT(TAG,"finished");
-
     }
     private void moveTo(Point p, Quaternion q){
         final String TAG = "[moveTo]: ";
@@ -379,7 +416,7 @@ public class YourService extends KiboRpcService {
             setFlashOn(true,(loopCount+1)%3);
             try{
                 LogT(TAG, "reading qr code");
-                wait(15000);
+                wait(20000);
                 bitmap = getNavCamImage();
                 QRCodeReader reader = new QRCodeReader();
                 com.google.zxing.Result result = reader.decode(bitmap,hints);
@@ -646,7 +683,7 @@ public class YourService extends KiboRpcService {
         LogT(TAG,"start");
 
         Quaternion look = startingQ;
-        Quaternion rotAxis = createFromAxisAngle(0,1,0, angle);
+        Quaternion rotAxis = createFromAxisAngle(axis.x, axis.y, axis.z, angle);
 
         look = multiplyQuaternion(look,rotAxis);
         logOrientationDetails(look);
@@ -786,7 +823,7 @@ public class YourService extends KiboRpcService {
 
         double angleFromCenter = Math.sqrt(result[0]*result[0] + result[1]*result[1]);
         LogT(TAG,"angle from center = " + angleFromCenter);
-        if(angleFromCenter <= angleThreshold){
+        if(angleFromCenter <= angleThreshold){ //Math.abs(result[0]) <= angleThreshold && Math.abs(result[1]) <= angleThreshold){
             result[2] = 1;
         }else{
             result[2] = 0;
@@ -797,12 +834,39 @@ public class YourService extends KiboRpcService {
         return result;
     }
 
-    public double[] arEvent(double angleThreshold){ //returns turn angle around y, around z, boolean:is within angleThreshold
+    private double getDistancePerPixel(List<Mat> corners){ // in meters
+        final String TAG = "[getDistancePerPixel]: ";
+        LogT(TAG,"start");
+
+        double[][] markerCenters = new double[4][2];
+        double distancePerPixel = 0;
+        double leftMost = 10000;
+        double rightMost = -10000;
+
+        for(int i = 0 ; i < 4; ++i){
+            markerCenters[i] = getMarkerCenter(corners.get(i));
+            if(markerCenters[i][0] < leftMost){
+                leftMost = markerCenters[i][0];
+            }
+            if(markerCenters[i][0] > rightMost){
+                rightMost = markerCenters[i][0];
+            }
+        }
+        double pixelDistance = rightMost-leftMost;
+        LogT(TAG, "l r pd = " + leftMost  + ", " + rightMost + ", " + pixelDistance);
+
+        distancePerPixel = (0.1125*2/pixelDistance);
+
+        LogT(TAG,"distance(meters) per pixel = " + distancePerPixel);
+        return distancePerPixel;
+    }
+
+    public double[] arEvent(double angleThreshold){ //returns turn angle around y, around z, is within angleThreshold, pixel offset x, y, distancePerPixel
         final String TAG = "[arEvent]: ";
 
         int arContent = 0;
         int loopCount = 0;
-        double[] result = new double[3];
+        double[] result = new double[6];
 
         Dictionary dict = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
 
@@ -813,7 +877,7 @@ public class YourService extends KiboRpcService {
 
             Rect roi = new Rect();
             Mat image = new Mat();
-            wait(15000);
+            wait(20000);
             image = api.getMatNavCam();
 
             Mat ids = new Mat();
@@ -827,14 +891,24 @@ public class YourService extends KiboRpcService {
                     LogT(TAG, "corners[" + i + "]=" + corners.get(i).dump());
                 }
 
-
                 double[] arCenter = getARCenter(corners);
-                Mat atCenterMat = new Mat(1,1, CvType.CV_32FC2);
-                atCenterMat.put(0,0, arCenter);
-                undistortPoints(atCenterMat);
+                double distancePerPixel = getDistancePerPixel(corners);
+                Mat arCenterMat = new Mat(1,1, CvType.CV_32FC2);
+                arCenterMat.put(0,0, arCenter);
+
+                Mat undistortedPoints = undistortPoints(arCenterMat);
+                arCenter[0] = undistortedPoints.get(0,0)[0];
+                arCenter[1] = undistortedPoints.get(0,0)[1];
 
                 int[] pixelOffset = getPixelOffsetFromCenter(arCenter,30);
-                result = pixelOffsetToAngleOffset(pixelOffset,angleThreshold);
+                double[] angleOffset = pixelOffsetToAngleOffset(pixelOffset,angleThreshold);
+
+                result[0] = angleOffset[0];
+                result[1] = angleOffset[1];
+                result[2] = angleOffset[2];
+                result[3] = pixelOffset[0];
+                result[4] = pixelOffset[1];
+                result[5] = distancePerPixel;
 
                 arContent = (int) ids.get(0, 0)[0];
 
