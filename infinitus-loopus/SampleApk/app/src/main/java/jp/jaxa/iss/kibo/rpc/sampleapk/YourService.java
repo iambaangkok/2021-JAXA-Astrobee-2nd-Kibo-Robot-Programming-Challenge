@@ -75,7 +75,6 @@ public class YourService extends KiboRpcService {
 
         Point p60 = pointA;
         Point p60yminus = pointA;
-        wait(1500);
         Quaternion lookTowardsAR = new Quaternion(1,0,0,0);
         if(kozPattern == 2){
             // look a bit down
@@ -115,7 +114,7 @@ public class YourService extends KiboRpcService {
             double dy2 = Math.cos(eulers[2]) * (-arData[3]) * arData[5];
             LogT(TAG, "dx dx2, dy dy2, dz = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz);
 
-            pAimAR = offsetPoint(p60yminus,dx+dx2, dy+dy2, dz);
+            pAimAR = offsetPoint(p60yminus,dx+dx2-(0.0572+0.0422), dy+dy2, dz + (0.1111-0.0826));
 
             moveTo(pAimAR, looking);
             wait(5000);
@@ -261,7 +260,7 @@ public class YourService extends KiboRpcService {
         if(status == true){
             api.flashlightControlFront(brightness);
             LogT(TAG, "brightness = " + String.valueOf(brightness));
-            wait(1000);
+            wait(500);
         }else{
             api.flashlightControlFront(0f);
             LogT(TAG, "off");
@@ -416,7 +415,7 @@ public class YourService extends KiboRpcService {
             setFlashOn(true,(loopCount+1)%3);
             try{
                 LogT(TAG, "reading qr code");
-                wait(20000);
+                wait(18000);
                 bitmap = getNavCamImage();
                 QRCodeReader reader = new QRCodeReader();
                 com.google.zxing.Result result = reader.decode(bitmap,hints);
@@ -877,7 +876,7 @@ public class YourService extends KiboRpcService {
 
             Rect roi = new Rect();
             Mat image = new Mat();
-            wait(20000);
+            wait(18000);
             image = api.getMatNavCam();
 
             Mat ids = new Mat();
