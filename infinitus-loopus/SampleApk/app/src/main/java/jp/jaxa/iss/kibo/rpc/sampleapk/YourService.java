@@ -74,14 +74,28 @@ public class YourService extends KiboRpcService {
         //moveTo(11.21, -9.8, 4.79, lookAToAPrime);
 
         Point p60 = pointA;
-        Point p60yminus = pointA;
+        Point pOffset = pointA;
         Quaternion lookTowardsAR = new Quaternion(1,0,0,0);
-        if(kozPattern == 2){
-            // look a bit down
+        if(kozPattern == 1){
+            // go 60 percent to pointAprime
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
-            p60yminus = offsetPoint(p60,0,-0.2,0);
+            // move forward a bit , to the right some
+            pOffset = offsetPoint(p60,0.2,-0.2,0);
+
+            // look a bit left
+            Quaternion lookLeft = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,1), -20);
+            // look a bit down
+            lookTowardsAR = quaternionRelativeRotate(lookLeft, new Vector3f(0,1,0), -35);
+            moveTo(pOffset, lookTowardsAR);
+        } else if(kozPattern == 2){
+            // go 60 percent to pointAprime
+            p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
+            // move forward a bit
+            pOffset = offsetPoint(p60,0,-0.2,0);
+
+            // look a bit down
             lookTowardsAR = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -35);
-            moveTo(p60yminus, lookTowardsAR);
+            moveTo(pOffset, lookTowardsAR);
         }
 
         // read AR
@@ -92,17 +106,17 @@ public class YourService extends KiboRpcService {
         arData = arEvent(10);
 
         // determine whether to aim by turning or moving
-        Point pAimAR = p60yminus;
+        Point pAimAR = pOffset;
 
-        if(arData[2] == 0){ // turn
+        /*if(arData[2] == 0){ // turn
             LogT(TAG,"aim by turning towards target");
             Quaternion lookAtTargetY = quaternionRelativeRotate(looking, new Vector3f(0,1,0), (float)-arData[1]);
             Quaternion lookAtTargetYX = quaternionRelativeRotate(lookAtTargetY, new Vector3f(0,0,1), (float)-arData[0]);
 
-            moveTo(p60yminus, lookAtTargetYX);
+            moveTo(pOffset, lookAtTargetYX);
             looking = lookAtTargetYX;
             wait(10000);
-        }else{ // move
+        }else{ // move*/
             LogT(TAG,"aim by moving towards target");
             double[] eulers = quaternionToEulers(looking);
 
@@ -114,7 +128,7 @@ public class YourService extends KiboRpcService {
             double dy2 = Math.cos(eulers[2]) * (-arData[3]) * arData[5];
             LogT(TAG, "dx dx2, dy dy2, dz = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz);
 
-            pAimAR = offsetPoint(p60yminus,dx+dx2-(0.0572+0.0422), dy+dy2, dz + (0.1111-0.0826));
+            pAimAR = offsetPoint(pOffset,dx+dx2-(0.0572+0.0422), dy+dy2, dz + (0.1111-0.0826));
 
             moveTo(pAimAR, looking);
             wait(5000);
@@ -123,7 +137,7 @@ public class YourService extends KiboRpcService {
 
             double dy = Math.cos(eulers[2]) * Math.cos(eulers[1]) * (arData[4]) * arData[5];
             double dz = Math.sin(eulers[1]) * (arData[4]) * arData[5];*/
-        }
+        //}
 
 
         // laser, snap, finish
