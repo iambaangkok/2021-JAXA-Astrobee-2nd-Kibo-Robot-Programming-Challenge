@@ -83,9 +83,9 @@ public class YourService extends KiboRpcService {
             pOffset = offsetPoint(p60,0.2,-0.2,0);
 
             // look a bit left
-            Quaternion lookLeft = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,1), -20);
+            Quaternion lookLeft = quaternionRelativeRotate(quaternionA, new Vector3f(0,0,1), -25);
             // look a bit down
-            lookTowardsAR = quaternionRelativeRotate(lookLeft, new Vector3f(0,1,0), -35);
+            lookTowardsAR = quaternionRelativeRotate(lookLeft, new Vector3f(0,1,0), -25);
             moveTo(pOffset, lookTowardsAR);
         } else if(kozPattern == 2){
             // go 60 percent to pointAprime
@@ -124,8 +124,9 @@ public class YourService extends KiboRpcService {
             double dy = Math.cos(eulers[1]) * Math.cos(eulers[2]) * (-arData[4]) * arData[5];
             double dz = Math.sin(eulers[1]) * (-arData[4]) * arData[5];
 
-            double dx2 = Math.sin(eulers[2]) * (-arData[3]) * arData[5];
-            double dy2 = Math.cos(eulers[2]) * (-arData[3]) * arData[5];
+            double dx2 = Math.cos(eulers[0]) * Math.sin(eulers[2]) * (-arData[3]) * arData[5];
+            double dy2 = Math.cos(eulers[0]) * Math.cos(eulers[2]) * (-arData[3]) * arData[5];
+            double dz2 = Math.sin(eulers[0]) * (-arData[3]) * arData[5];
             LogT(TAG, "dx dx2, dy dy2, dz = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz);
 
             pAimAR = offsetPoint(pOffset,dx+dx2-(0.0572+0.0422), dy+dy2, dz + (0.1111-0.0826));
@@ -847,26 +848,29 @@ public class YourService extends KiboRpcService {
         return result;
     }
 
-    private double getDistancePerPixel(List<Mat> corners){ // in meters
+    private double getDistancePerPixel(List<Mat> corners, Mat ids){ // in meters
         final String TAG = "[getDistancePerPixel]: ";
         LogT(TAG,"start");
 
         double[][] markerCenters = new double[4][2];
         double distancePerPixel = 0;
-        double leftMost = 10000;
-        double rightMost = -10000;
+        double[] topLeft = new double[2];
+        double[] topRight = new double[2];
 
         for(int i = 0 ; i < 4; ++i){
             markerCenters[i] = getMarkerCenter(corners.get(i));
-            if(markerCenters[i][0] < leftMost){
-                leftMost = markerCenters[i][0];
-            }
-            if(markerCenters[i][0] > rightMost){
-                rightMost = markerCenters[i][0];
+            if(ids.get(i,0)[0] == 2){
+                topLeft[0] = markerCenters[i][0];
+                topLeft[1] = markerCenters[i][1];
+                LogT(TAG, "p top left = " + topLeft[0] + ", " + topLeft[1]);
+            }else if(ids.get(i,0)[0] == 1){
+                topRight[0] = markerCenters[i][0];
+                topRight[1] = markerCenters[i][1];
+                LogT(TAG, "p top right = " + topRight[0] + ", " + topRight[1]);
             }
         }
-        double pixelDistance = rightMost-leftMost;
-        LogT(TAG, "l r pd = " + leftMost  + ", " + rightMost + ", " + pixelDistance);
+        double pixelDistance = Math.sqrt(Math.pow(topLeft[0]-topRight[0],2) + Math.pow(topLeft[1]-topRight[1],2));
+        LogT(TAG, "pixel distance = " + pixelDistance);
 
         distancePerPixel = (0.1125*2/pixelDistance);
 
@@ -905,7 +909,7 @@ public class YourService extends KiboRpcService {
                 }
 
                 double[] arCenter = getARCenter(corners);
-                double distancePerPixel = getDistancePerPixel(corners);
+                double distancePerPixel = getDistancePerPixel(corners, ids);
                 Mat arCenterMat = new Mat(1,1, CvType.CV_32FC2);
                 arCenterMat.put(0,0, arCenter);
 
