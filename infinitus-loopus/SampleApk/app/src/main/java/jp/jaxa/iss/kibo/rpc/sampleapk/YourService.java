@@ -1,11 +1,12 @@
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
 // astrobee library
+import gov.nasa.arc.astrobee.Kinematics;
 import gov.nasa.arc.astrobee.Result;
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
-
+import jp.jaxa.iss.kibo.rpc.api.types.PointCloud;
 // android library
 import android.os.SystemClock;
 import android.util.Log;
@@ -19,25 +20,24 @@ import com.google.zxing.qrcode.QRCodeReader;
 import com.google.zxing.DecodeHintType;
 import com.google.zxing.BarcodeFormat;
 // opencv library
-import org.opencv.core.Core;
+import org.opencv.aruco.Aruco;
+import org.opencv.aruco.Dictionary;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfInt;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.core.Rect;
-import org.opencv.objdetect.QRCodeDetector;
 import static org.opencv.android.Utils.matToBitmap;
 import org.opencv.calib3d.Calib3d;
-
 // java library
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Arrays;
-import java.util.Scanner;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
+
+import javax.vecmath.Vector3f;
+import javax.vecmath.Quat4f;
 
 /**
  * Class meant to handle commands from the Ground Data System and execute them in Astrobee
@@ -46,7 +46,14 @@ import java.util.List;
 public class YourService extends KiboRpcService {
 
     final int LOOP_MAX = 3;
+    final int NAV_CAM_WIDTH = 1280;
+    final int NAV_CAM_HEIGHT = 960;
+    final Point pointA = new Point(11.21, -9.8, 4.79);
+    final Quaternion quaternionA = new Quaternion(0, 0, -0.707f, 0.707f);
+    final Vector3f up = new Vector3f(0,-1,0);
+
     static long startTime = 0;
+
     @Override
     protected void runPlan1(){
         final String TAG = "[main]: ";
@@ -54,33 +61,131 @@ public class YourService extends KiboRpcService {
         api.startMission();
         startTime = getTime();
 
-        // move to point A (11.21, -9.8, 4.79, 0) quaternion A (0, 0, -0.707f, 0.707f)
+        // move to point A (11.21, -9.8, 4.79) quaternion A (0, 0, -0.707f, 0.707f)
         moveTo(11.21, -9.8, 4.79, 0, 0, -0.707f, 0.707f);
 
         // scan QR Code to get point A' (qrData[0], qrData[1], qrData[2]) quaternion A' (0, 0, -0.707, 0.707) KOZ pattern (qrData[3])
         float[] qrData = qrEvent();
         int kozPattern = (int)qrData[0];
 
-        // move to point A' (11.21, -9.8, 4.79, 0) quaternion A (0, 0, -0.707f, 0.707f)
-        moveTo(qrData[1],qrData[2],qrData[3],0, 0, -0.707f, 0.707f);
-        float[] arData = arEvent();
-        Log.d(TAG, "successful");
+        // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
 
-        moveTo(10.6,-8.0,4.5,0,0,-0.707f,0.707f);
+        //Quaternion lookAToAPrime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), up);
+        //moveTo(11.21, -9.8, 4.79, lookAToAPrime);
+
+        Point p60 = pointA;
+        Point pOffset = pointA;
+        Quaternion lookTowardsAR = new Quaternion(1,0,0,0);
+        if(kozPattern == 1){
+            // go 60 percent to pointAprime
+            p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
+            // move forward a bit , to the right some
+            pOffset = offsetPoint(p60,0.2,-0.2,0);
+
+            // look a bit left
+            Quaternion lookLeft = quaternionRelativeRotate(quaternionA, new Vector3f(0,0,1), -25);
+            // look a bit down
+            lookTowardsAR = quaternionRelativeRotate(lookLeft, new Vector3f(0,1,0), -25);
+            moveTo(pOffset, lookTowardsAR);
+        } else if(kozPattern == 2){
+            // go 60 percent to pointAprime
+            p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
+            // move forward a bit
+            pOffset = offsetPoint(p60,0,-0.2,0);
+
+            // look a bit down
+            lookTowardsAR = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -35);
+            moveTo(pOffset, lookTowardsAR);
+        }
+
+        // read AR
+        Quaternion looking = lookTowardsAR;
+        double[] arData = new double[6]; // angle offset x, y, angle threshold, pixel offset x, y, distancePerPixel
+
+        arData[2] = 0;
+        arData = arEvent(10);
+
+        // determine whether to aim by turning or moving
+        Point pAimAR = pOffset;
+
+        /*if(arData[2] == 0){ // turn
+            LogT(TAG,"aim by turning towards target");
+            Quaternion lookAtTargetY = quaternionRelativeRotate(looking, new Vector3f(0,1,0), (float)-arData[1]);
+            Quaternion lookAtTargetYX = quaternionRelativeRotate(lookAtTargetY, new Vector3f(0,0,1), (float)-arData[0]);
+
+            moveTo(pOffset, lookAtTargetYX);
+            looking = lookAtTargetYX;
+            wait(10000);
+        }else{ // move*/
+        LogT(TAG,"aim by moving towards target");
+        double[] eulers = quaternionToEulers(looking);
+
+        double dx = Math.cos(eulers[1]) * Math.sin(eulers[2]) * (-arData[4]) * arData[5];
+        double dy = Math.cos(eulers[1]) * Math.cos(eulers[2]) * (-arData[4]) * arData[5];
+        double dz = Math.sin(eulers[1]) * (-arData[4]) * arData[5];
+
+        double dx2 = Math.cos(eulers[0]) * Math.sin(eulers[2]) * (-arData[3]) * arData[5];
+        double dy2 = Math.cos(eulers[0]) * Math.cos(eulers[2]) * (-arData[3]) * arData[5];
+        double dz2 = Math.sin(eulers[0]) * (-arData[3]) * arData[5];
+        LogT(TAG, "dx dx2, dy dy2, dz = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz);
+
+        pAimAR = offsetPoint(pOffset,dx+dx2-(0.0572+0.0422), dy+dy2, dz + (0.1111-0.0826));
+
+        moveTo(pAimAR, looking);
+        wait(5000);
+
+            /*double dx = -Math.sin(eulers[2]) * (arData[3]) * arData[5];
+
+            double dy = Math.cos(eulers[2]) * Math.cos(eulers[1]) * (arData[4]) * arData[5];
+            double dz = Math.sin(eulers[1]) * (arData[4]) * arData[5];*/
+        //}
+
+
+        // laser, snap, finish
+        LogT(TAG,"laser on");
+        api.laserControl(true);
+        LogT(TAG,"snap");
+        api.takeSnapshot();
+        LogT(TAG,"laser off");
+        api.laserControl(false);
+
+        LogT(TAG, "going to pointB");
+        goToB_event();
+
+        LogT(TAG, "reporting mission completion");
         api.reportMissionCompletion();
-    }
+        LogT(TAG, "successful");
 
 
-    private static long getTime(){
-        return SystemClock.elapsedRealtime();
-    }
-    private static long getElapsedTime(){
-        return getTime()-startTime;
-    }
-    private static String getElapsedTimeS(){
-        return " _Time_: " + String.valueOf(getElapsedTime());
     }
 
+    //Utility
+    private Point averagePoint(Point from, Point to, double percent){
+        final String TAG = "[averagePoint]: ";
+        LogT(TAG,"start");
+
+        double x = from.getX() + (to.getX()-from.getX())*percent/100;
+        double y = from.getY() + (to.getY()-from.getY())*percent/100;
+        double z = from.getZ() + (to.getZ()-from.getZ())*percent/100;
+
+        Point avg = new Point(x,y,z);
+        LogT(TAG,"avg = " + avg.toString());
+
+        return avg;
+    }
+    private Point offsetPoint(Point start, double dx, double dy, double dz){
+        final String TAG = "[offsetPoint]: ";
+        LogT(TAG,"start");
+
+        double x = start.getX() + dx;
+        double y = start.getY() + dy;
+        double z = start.getZ() + dz;
+
+        Point offset = new Point(x,y,z);
+        LogT(TAG,"offset = " + offset.toString());
+
+        return offset;
+    }
     private void moveTo(double x, double y, double z, float qx, float qy, float qz, float qw){
         final String TAG = "[moveTo]: ";
 
@@ -88,40 +193,115 @@ public class YourService extends KiboRpcService {
         Quaternion q = new Quaternion(qx,qy,qz,qw);
         int loopCount = 0;
         Result result;
-        Log.d(TAG, "start");
+        LogT(TAG, "start " + x + "," + y + "," + z + " | " + qx + "," + qy + "," + qz + "," + qw);
 
         do {
             result = api.moveTo(p,q,true);
             loopCount++;
         } while(!result.hasSucceeded() && loopCount < LOOP_MAX);
 
-        Log.d(TAG,"finished");
+        LogT(TAG,"finished");
+    }
+    private void moveTo(double x, double y, double z, Quaternion q){
+        final String TAG = "[moveTo]: ";
+
+        float qx = q.getX();
+        float qy = q.getY();
+        float qz = q.getZ();
+        float qw = q.getW();
+
+
+        Point p = new Point(x,y,z);
+        int loopCount = 0;
+        Result result;
+        LogT(TAG, "start " + x + "," + y + "," + z + " | " + qx + "," + qy + "," + qz + "," + qw);
+
+        do {
+            result = api.moveTo(p,q,true);
+            loopCount++;
+        } while(!result.hasSucceeded() && loopCount < LOOP_MAX);
+
+        LogT(TAG,"finished");
+    }
+    private void moveTo(Point p, Quaternion q){
+        final String TAG = "[moveTo]: ";
+
+        double x = p.getX();
+        double y = p.getY();
+        double z = p.getZ();
+        float qx = q.getX();
+        float qy = q.getY();
+        float qz = q.getZ();
+        float qw = q.getW();
+
+
+        int loopCount = 0;
+        Result result;
+        LogT(TAG, "start " + x + "," + y + "," + z + " | " + qx + "," + qy + "," + qz + "," + qw);
+
+        do {
+            result = api.moveTo(p,q,true);
+            loopCount++;
+        } while(!result.hasSucceeded() && loopCount < LOOP_MAX);
+
+        LogT(TAG,"finished");
 
     }
-    private void setFlashOn(boolean status){
-        final String TAG = "[setFlashOn]: ";
-        Log.d(TAG, String.valueOf(status) + getElapsedTimeS());
-        if(status == true){
-            api.flashlightControlFront(0.5f);
-            Log.d(TAG, "brightness = " + String.valueOf(0.5f) + getElapsedTimeS());
-            try{
-                Log.d(TAG, "sleeping");
-                Thread.sleep(1000);
-            }catch (InterruptedException e){
-                Log.d(TAG, "interrupted" + getElapsedTimeS());
-                e.printStackTrace();
-            }
-        }else{
-            api.flashlightControlFront(0f);
-            Log.d(TAG, "off" + getElapsedTimeS());
-        }
-        Log.d(TAG, "done" + getElapsedTimeS());
+
+    private void goToB_event(){
+        final String TAG = "[GoB]: ";
+        Log.d(TAG, "start");
+
+        Log.d(TAG, "Move to entrance");
+        moveTo(10.505,-9.2, 4.5, 0, 0, -0.707f, 0.707f);
+
+        Log.d(TAG, "Pass through KOZ");
+        moveTo(10.505, -8, 4.5, 0, 0, -0.707f, 0.707f);
+
+        Log.d(TAG, "Go to point B");
+        moveTo(10.6, -8, 4.5, 0, 0, -0.707f, 0.707f);
+
+        Log.d(TAG, "end");
         return;
     }
+
+    private void setFlashOn(boolean status, int brightnessIndex){
+        final String TAG = "[setFlashOn]: ";
+
+        float brightness = 0.33f;
+        brightness *= brightnessIndex;
+
+        LogT(TAG, "start");
+        if(status == true){
+            api.flashlightControlFront(brightness);
+            LogT(TAG, "brightness = " + String.valueOf(brightness));
+            wait(500);
+        }else{
+            api.flashlightControlFront(0f);
+            LogT(TAG, "off");
+        }
+        LogT(TAG, "done");
+        return;
+    }
+    private void wait(int milliseconds){
+        final String TAG = "[wait]: ";
+        LogT(TAG, "start");
+
+        try{
+            LogT(TAG, "waiting for " + milliseconds + " ms");
+            Thread.sleep(milliseconds);
+        }catch (InterruptedException e){
+            LogT(TAG, "interrupted");
+            e.printStackTrace();
+        }
+        return;
+    }
+
+    //Image Processing
     private Rect cropImage(double xPercent, double yPercent,double cropPercent){
         final String TAG = "[cropImage]: ";
 
-        Log.d(TAG,"start");
+        LogT(TAG,"start");
 
         final int WIDTH = 1280;
         final int HEIGHT = 960;
@@ -131,15 +311,14 @@ public class YourService extends KiboRpcService {
         int width = (int)(cropPercent/100*WIDTH);
         int height = (int)(cropPercent/100*HEIGHT);
 
-        Log.d(TAG,"done");
+        LogT(TAG,"done");
 
         return new Rect(x,y,width,height);
     }
-
     private BinaryBitmap getNavCamImage(){
         final String TAG = "[getNavCamImage]: ";
 
-        Log.d(TAG, "start");
+        LogT(TAG, "start");
 
         Mat image = new Mat(api.getMatNavCam(), cropImage(45, 50, 32));
 
@@ -151,40 +330,40 @@ public class YourService extends KiboRpcService {
         LuminanceSource source = new RGBLuminanceSource(bitmap.getWidth(), bitmap.getHeight(), intArray);
         BinaryBitmap binarizedBitmap = new BinaryBitmap(new HybridBinarizer(source));
 
-        Log.d(TAG, "done");
+        LogT(TAG, "done");
 
         return binarizedBitmap;
     }
 
     private Mat undistort(Mat sourceImage, Rect roi){
         final String TAG = "[undistortImage]: ";
-            LogT(TAG, "start");
+        LogT(TAG, "start");
         double[][] navCamIntrinsics = api.getNavCamIntrinsics();
-            LogT(TAG, "got navCamIntrinsics " + Arrays.deepToString(navCamIntrinsics));
+        LogT(TAG, "got navCamIntrinsics " + Arrays.deepToString(navCamIntrinsics));
 
         int row = 0, col = 0;
         Mat cameraMat = new Mat(3, 3, CvType.CV_32FC1);
         cameraMat.put(row, col, navCamIntrinsics[0]);
-            LogT(TAG, "cameraMat put " + cameraMat.toString() + " " + cameraMat.dump());
+        LogT(TAG, "cameraMat put " + cameraMat.toString() + " " + cameraMat.dump());
 
         row = 0; col = 0;
         Mat distortionCoeff = new Mat(1, 5, CvType.CV_32FC1);
         distortionCoeff.put(row,col,navCamIntrinsics[1]);
-            LogT(TAG, "distortCoeff put " + distortionCoeff.toString() + " " + distortionCoeff.dump());
+        LogT(TAG, "distortCoeff put " + distortionCoeff.toString() + " " + distortionCoeff.dump());
 
         Mat undistortedPic = new Mat(1280, 960, CvType.CV_8UC1);
 
-            LogT(TAG, sourceImage.size().toString());
-            LogT(TAG,  cameraMat.size().toString());
-            LogT(TAG,  distortionCoeff.size().toString());
+        LogT(TAG, sourceImage.size().toString());
+        LogT(TAG,  cameraMat.size().toString());
+        LogT(TAG,  distortionCoeff.size().toString());
         Size sourceImageSize = sourceImage.size();
 
         Mat newCameraMat = Calib3d.getOptimalNewCameraMatrix(cameraMat, distortionCoeff, sourceImageSize, 1, sourceImageSize, roi);
-            LogT(TAG, "got optimalNewCamMat " + newCameraMat.dump());
-            LogT(TAG, newCameraMat.size().toString());
+        LogT(TAG, "got optimalNewCamMat " + newCameraMat.dump());
+        LogT(TAG, newCameraMat.size().toString());
 
         Imgproc.undistort(sourceImage,undistortedPic,cameraMat,distortionCoeff,newCameraMat);
-            LogT(TAG, "finished undistort");
+        LogT(TAG, "finished undistort");
 
         return undistortedPic;
     }
@@ -218,61 +397,24 @@ public class YourService extends KiboRpcService {
         return undistortedPoints;
     }
 
-    private double[] undistortPoint(double[] point){
-        final String TAG = "[undistortPoints]: ";
-        LogT(TAG, "start");
-        double[][] navCamIntrinsics = api.getNavCamIntrinsics();
-        LogT(TAG, "got navCamIntrinsics " + Arrays.deepToString(navCamIntrinsics));
-
-        int row = 0, col = 0;
-        Mat cameraMat = new Mat(3, 3, CvType.CV_32FC1);
-        cameraMat.put(row, col, navCamIntrinsics[0]);
-        LogT(TAG, "cameraMat put " + cameraMat.toString() + " " + cameraMat.dump());
-
-        row = 0; col = 0;
-        Mat distortionCoeff = new Mat(1, 5, CvType.CV_32FC1);
-        distortionCoeff.put(row,col,navCamIntrinsics[1]);
-        LogT(TAG, "distortCoeff put " + distortionCoeff.toString() + " " + distortionCoeff.dump());
-
-
-        Mat newPoint = new Mat(1,1,CvType.CV_32FC1);
-        newPoint.put(0,0,point);
-        Mat undistortedPoints = new Mat(newPoint.rows(), newPoint.cols(), newPoint.type());
-
-        LogT(TAG, newPoint.size().toString());
-        LogT(TAG,  cameraMat.size().toString());
-        LogT(TAG,  distortionCoeff.size().toString());
-
-        Imgproc.undistortPoints(newPoint,undistortedPoints,cameraMat,distortionCoeff, new Mat(), cameraMat);
-        LogT(TAG, "finished undistort points" + undistortedPoints.dump());
-
-        double[] undistortedPoint = new double[2];
-        undistortedPoint[0] = undistortedPoints.get(0,0)[0];
-        undistortedPoint[1] = undistortedPoints.get(0,0)[1];
-
-        return undistortedPoint;
-    }
-
     //QR
-
     private float[] getQRDataContent(String qrData){
         final String TAG = "[getQRDataContent] :";
-        Log.d(TAG, "start");
+        LogT(TAG, "start");
 
         String[] multi_contents = qrData.split(",");
         int kozPattern = Integer.parseInt(multi_contents[0].substring(5));
         float x = Float.parseFloat(multi_contents[1].substring(4));
         float y = Float.parseFloat(multi_contents[2].substring(4));
         float z = Float.parseFloat(multi_contents[3].substring(4, multi_contents[3].length()-1));
-        Log.i(TAG, "contents: " + kozPattern + " " + x + " " + y + " " + z);
-        Log.i(TAG, "finished");
+        LogT(TAG, "contents: " + kozPattern + " " + x + " " + y + " " + z);
+        LogT(TAG, "finished");
 
         return new float[] {kozPattern, x, y, z};
     }
-
     private float [] qrEvent(){
         final String TAG = "[qrEvent]: ";
-        Log.d(TAG,"start");
+        LogT(TAG,"start");
 
         String qrData = null;
         int loopCount = 0;
@@ -284,37 +426,37 @@ public class YourService extends KiboRpcService {
         hints.put(DecodeHintType.CHARACTER_SET, "utf-8");
 
         while(qrData == null && loopCount < LOOP_MAX){
-            Log.d(TAG, "loopCount " + loopCount);
-            loopCount++;
+            LogT(TAG, "loopCount " + loopCount);
+            setFlashOn(true,(loopCount+1)%3);
             try{
-                Log.d(TAG, "reading qr code");
+                LogT(TAG, "reading qr code");
+                wait(18000);
                 bitmap = getNavCamImage();
                 QRCodeReader reader = new QRCodeReader();
                 com.google.zxing.Result result = reader.decode(bitmap,hints);
                 qrData = result.getText();
                 if(qrData != null){
                     api.sendDiscoveredQR(qrData);
-                    Log.i(TAG, "data : " + qrData);
-                    Log.i(TAG, "finished");
+                    LogT(TAG, "data : " + qrData);
+                    LogT(TAG, "qr code read successfully");
 
                     float[] content = getQRDataContent(qrData);
-
+                    setFlashOn(false,0);
                     return content;
                 }
             }catch(Exception e){
-                Log.d(TAG, "an error occurred while reading qr code");
+                LogT(TAG, "an error occurred while reading qr code");
                 e.printStackTrace();
             }
+            setFlashOn(false,0);
+            loopCount++;
         }
+        setFlashOn(false,0);
 
-        Log.d(TAG, "failed to read qr code");
+        LogT(TAG, "failed to read qr code");
         return null;
     }
 
-<<<<<<< Updated upstream
-    public float[] arEvent()
-    {
-=======
     //Quaternion
     private double[] quaternionToEulers(Quaternion q) {
         final String TAG = "[quaternionToEulers]: ";
@@ -573,12 +715,10 @@ public class YourService extends KiboRpcService {
         double[] sum = new double[2];
         sum[0] = sum[1] = 0;
         for(int j = 0 ; j < 4; ++j){
-            double[] point = {corner.get(0,j)[0] , corner.get(0,j)[1]};
-            point = undistortPoint(point);
             LogT(TAG,"" + j + "x");
-            sum[0] += point[0];
+            sum[0] += corner.get(0,j)[0];
             LogT(TAG,"" + j + "y");
-            sum[1] += point[1];
+            sum[1] += corner.get(0,j)[1];
         }
         sum[0] /= 4;
         sum[1] /= 4;
@@ -739,12 +879,8 @@ public class YourService extends KiboRpcService {
     }
 
     public double[] arEvent(double angleThreshold){ //returns turn angle around y, around z, is within angleThreshold, pixel offset x, y, distancePerPixel
->>>>>>> Stashed changes
         final String TAG = "[arEvent]: ";
-        Log.d(TAG,"start");
 
-<<<<<<< Updated upstream
-=======
         int arContent = 0;
         int loopCount = 0;
         double[] result = new double[6];
@@ -774,12 +910,12 @@ public class YourService extends KiboRpcService {
 
                 double[] arCenter = getARCenter(corners);
                 double distancePerPixel = getDistancePerPixel(corners, ids);
-                /*Mat arCenterMat = new Mat(1,1, CvType.CV_32FC2);
+                Mat arCenterMat = new Mat(1,1, CvType.CV_32FC2);
                 arCenterMat.put(0,0, arCenter);
 
                 Mat undistortedPoints = undistortPoints(arCenterMat);
                 arCenter[0] = undistortedPoints.get(0,0)[0];
-                arCenter[1] = undistortedPoints.get(0,0)[1];*/
+                arCenter[1] = undistortedPoints.get(0,0)[1];
 
                 int[] pixelOffset = getPixelOffsetFromCenter(arCenter,30);
                 double[] angleOffset = pixelOffsetToAngleOffset(pixelOffset,angleThreshold);
@@ -806,9 +942,39 @@ public class YourService extends KiboRpcService {
         }
         return result;
     }
->>>>>>> Stashed changes
 
-        return null;
+    //Misc
+    private static long getTime(){ return SystemClock.elapsedRealtime(); }
+    private static long getElapsedTime(){ return getTime()-startTime; }
+    private static String getElapsedTimeS(){ return " _Time_: " + String.valueOf(getElapsedTime()); }
+    private static void LogT(String TAG, String msg){ Log.d(TAG,msg + " " + getElapsedTimeS()); }
+
+    private Point getRobotPosition(){
+        final String TAG = "[getRobotPosition]: ";
+        LogT(TAG,"start");
+
+        Kinematics data = api.getTrustedRobotKinematics();
+        Point p = data.getPosition();
+
+        LogT(TAG, "robot position = " + p.toString());
+
+        return p;
     }
+    private Quaternion getRobotOrientation(){
+        final String TAG = "[getRobotRotation]: ";
+        LogT(TAG,"start");
+
+        Kinematics data = api.getTrustedRobotKinematics();
+
+        Quaternion q = data.getOrientation();
+
+        LogT(TAG, "robot position = " + q.toString());
+
+        return q;
+    }
+    private PointCloud getPointCloud(){ return api.getPointCloudHazCam(); }
+
+
+
 }
 
