@@ -156,8 +156,6 @@ public class YourService extends KiboRpcService {
         return binarizedBitmap;
     }
 
-<<<<<<< Updated upstream
-=======
     private Mat undistort(Mat sourceImage, Rect roi){
         final String TAG = "[undistortImage]: ";
             LogT(TAG, "start");
@@ -256,7 +254,7 @@ public class YourService extends KiboRpcService {
     }
 
     //QR
->>>>>>> Stashed changes
+
     private float[] getQRDataContent(String qrData){
         final String TAG = "[getQRDataContent] :";
         Log.d(TAG, "start");
