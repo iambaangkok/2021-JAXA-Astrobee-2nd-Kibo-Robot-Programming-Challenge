@@ -83,7 +83,7 @@ public class YourService extends KiboRpcService {
             pOffset = offsetPoint(p60,0.2,-0.2,0);
 
             // look a bit left
-            Quaternion lookLeft = quaternionRelativeRotate(quaternionA, new Vector3f(0,0,1), -25);
+            Quaternion lookLeft = quaternionRelativeRotate(quaternionA, new Vector3f(0,0,1), -10);
             // look a bit down
             lookTowardsAR = quaternionRelativeRotate(lookLeft, new Vector3f(0,1,0), -25);
             moveTo(pOffset, lookTowardsAR);
@@ -118,18 +118,22 @@ public class YourService extends KiboRpcService {
             wait(10000);
         }else{ // move*/
             LogT(TAG,"aim by moving towards target");
-            double[] eulers = quaternionToEulers(looking);
+            double[] eulers = quaternionToEulers(looking); // x, y, z
 
-            double dx = Math.cos(eulers[1]) * Math.sin(eulers[2]) * (-arData[4]) * arData[5];
-            double dy = Math.cos(eulers[1]) * Math.cos(eulers[2]) * (-arData[4]) * arData[5];
-            double dz = Math.sin(eulers[1]) * (-arData[4]) * arData[5];
+            double yOffset = (arData[4]) * arData[5]+(0.1111-0.0826);
+            double xOffset = (arData[3]) * arData[5]-(0.0572+0.0422);
 
-            double dx2 = Math.cos(eulers[0]) * Math.sin(eulers[2]) * (-arData[3]) * arData[5];
-            double dy2 = Math.cos(eulers[0]) * Math.cos(eulers[2]) * (-arData[3]) * arData[5];
-            double dz2 = Math.sin(eulers[0]) * (-arData[3]) * arData[5];
-            LogT(TAG, "dx dx2, dy dy2, dz = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz);
+            double dx = Math.sin(eulers[1]) * Math.sin(eulers[2]+90) * yOffset; // -
+            double dy = Math.sin(eulers[1]) * Math.cos(eulers[2]+90) * yOffset; // + needs to be minus
+            double dz = Math.cos(eulers[1]) * yOffset; // -
 
-            pAimAR = offsetPoint(pOffset,dx+dx2-(0.0572+0.0422), dy+dy2, dz + (0.1111-0.0826));
+            double dx2 = Math.cos(eulers[0]) * Math.cos(eulers[2]+90) * xOffset; // -
+            double dy2 = Math.cos(eulers[0]) * Math.sin(eulers[2]+90) * xOffset; // +
+            double dz2 = Math.sin(eulers[0]) * xOffset; // -
+
+            LogT(TAG, "dx dx2, dy dy2, dz dz2 = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz + " " + dz2);
+
+            pAimAR = offsetPoint(pOffset,dx+dx2, dy+dy2, dz+dz2);
 
             moveTo(pAimAR, looking);
             wait(5000);
