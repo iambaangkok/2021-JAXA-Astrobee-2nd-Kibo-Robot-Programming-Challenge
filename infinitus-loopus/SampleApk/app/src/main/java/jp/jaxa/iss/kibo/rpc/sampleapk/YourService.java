@@ -78,14 +78,14 @@ public class YourService extends KiboRpcService {
         Quaternion lookTowardsAR = new Quaternion(1,0,0,0);
         if(kozPattern == 1){
             // go 60 percent to pointAprime
-            p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
+            p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 80);
             // move forward a bit , to the right some
             pOffset = offsetPoint(p60,0.2,-0.2,0);
 
             // look a bit left
-            Quaternion lookLeft = quaternionRelativeRotate(quaternionA, new Vector3f(0,0,1), -25);
+            Quaternion lookleft = quaternionRelativeRotate(quaternionA, new Vector3f(0,0,1), -25);
             // look a bit down
-            lookTowardsAR = quaternionRelativeRotate(lookLeft, new Vector3f(0,1,0), -25);
+            lookTowardsAR = quaternionRelativeRotate(lookleft, new Vector3f(0,1,0), -25);
             moveTo(pOffset, lookTowardsAR);
         } else if(kozPattern == 2){
             // go 60 percent to pointAprime
@@ -851,18 +851,21 @@ public class YourService extends KiboRpcService {
         LogT(TAG,"start");
 
         double[] result = new double[3];
-        double[] camMat = api.getNavCamIntrinsics()[0];
+        /*double[] camMat = api.getNavCamIntrinsics()[0];*/
 
-        double fov_x = 2 * Math.atan(NAV_CAM_WIDTH / (2 * camMat[0]) );
-        double fov_y = 2 * Math.atan(NAV_CAM_HEIGHT / (2 * camMat[4]) );
+        /*double fov_x = 2 * Math.atan(NAV_CAM_WIDTH / (2 * camMat[0]) );
+        double fov_y = 2 * Math.atan(NAV_CAM_HEIGHT / (2 * camMat[4]) );*/
         /*double fov_x = 130.0 / 180.0 * Math.PI;
-        double fov_y = 130.0 / 180.0 * Math.PI;*/
+        double fov_y = 130.0 / 180.0 * Math.PI;
         LogT(TAG , "fov_x : " + (fov_x * 180 / Math.PI) );
         LogT(TAG , "fov_y : " + (fov_y * 180 / Math.PI) );
         double angleoffsetX = Math.atan( pixelOffset[0] * Math.tan(fov_x / 2) / (NAV_CAM_WIDTH / 2)) * 180 / Math.PI;
-        double angleoffsetY = Math.atan( pixelOffset[1] * Math.tan(fov_y / 2) / (NAV_CAM_HEIGHT / 2)) * 180 / Math.PI;
+        double angleoffsetY = Math.atan( pixelOffset[1] * Math.tan(fov_y / 2) / (NAV_CAM_HEIGHT / 2)) * 180 / Math.PI*/;
 
         //LogT(TAG,"angle offset = " + angleoffsetX + "," + angleoffsetY);
+
+        double angleoffsetX = 130.0 / NAV_CAM_WIDTH * pixelOffset[0] ;
+        double angleoffsetY = 130.0 / NAV_CAM_WIDTH * pixelOffset[1];
 
         result[0] = angleoffsetX;
         result[1] = angleoffsetY;
