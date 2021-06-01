@@ -35,6 +35,7 @@ android {
 }
 
 dependencies {
+    compile 'javax.vecmath:vecmath:1.5.2'
     compile 'com.google.zxing:core:3.3.3'
     compile project(':guest_science_library')
     compile project(':kibo_rpc_api')

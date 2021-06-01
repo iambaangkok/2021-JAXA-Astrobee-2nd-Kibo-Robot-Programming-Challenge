@@ -712,38 +712,62 @@ public class YourService extends KiboRpcService {
         final String TAG = "[getMarkerCenter]: ";
         LogT(TAG,"start");
 
-        double[] sum = new double[2];
-        sum[0] = sum[1] = 0;
+        double[][] point = new double[4][2];
+
+
         for(int j = 0 ; j < 4; ++j){
             LogT(TAG,"" + j + "x");
-            sum[0] += corner.get(0,j)[0];
+            point[j][0] = corner.get(0,j)[0];
             LogT(TAG,"" + j + "y");
-            sum[1] += corner.get(0,j)[1];
+            point[j][1] = corner.get(0,j)[1];
         }
-        sum[0] /= 4;
-        sum[1] /= 4;
-        LogT(TAG,"corner_center = (" + sum[0] + "," + sum[1] + ")");
 
-        return sum;
+        double x1 = point[0][0];
+        double y1 = point[0][1];
+        double x2 = point[2][0];
+        double y2 = point[2][1];
+        double x3 = point[1][0];
+        double y3 = point[1][1];
+        double x4 = point[3][0];
+        double y4 = point[3][1];
+
+        double D = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        double[] newPoint = new double[2];
+        newPoint[0] = ( (x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4) ) / D;
+        newPoint[1] = ( (x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4) ) / D;
+
+        LogT(TAG,"corner_center = (" + newPoint[0] + "," + newPoint[1] + ")");
+
+        return newPoint;
     }
-    private double[] getARCenter(List<Mat> corners){
+    private double[] getARCenter(List<Mat> corners , Mat ids){
         final String TAG = "[getARCenter]: ";
         LogT(TAG,"start");
 
-        double centerX = 0, centerY = 0;
-
+        double[][] point = new double[4][2];
         for(int i = 0 ; i < 4; ++i){
-            double[] sumXY = getMarkerCenter(corners.get(i));
-            centerX += sumXY[0];
-            centerY += sumXY[1];
+            double[] eachPoint = getMarkerCenter(corners.get(i));
+            int id = (int)ids.get(i,0)[0];
+            point[id - 1][0] = eachPoint[0];
+            point[id - 1][1] = eachPoint[1];
         }
-        centerX /= 4;
-        centerY /= 4;
-        double[] center = new double[2];
-        center[0] = centerX; center[1] = centerY;
 
-        LogT(TAG,"ar center = (" + centerX + "," + centerY + ")");
-        return center;
+        double x1 = point[0][0];
+        double y1 = point[0][1];
+        double x2 = point[2][0];
+        double y2 = point[2][1];
+        double x3 = point[1][0];
+        double y3 = point[1][1];
+        double x4 = point[3][0];
+        double y4 = point[3][1];
+
+        double D = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        double[] centerPoint = new double[2];
+        centerPoint[0] = ( (x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4) ) / D;
+        centerPoint[1] = ( (x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4) ) / D;
+
+        LogT(TAG,"ar center = (" + centerPoint[0] + "," + centerPoint[1] + ")");
+        return centerPoint;
     }
     private double[] getARCenterPoint(double[] pointFromNavCam){
         final String TAG = "[getARCenterPoint]: ";
@@ -827,13 +851,21 @@ public class YourService extends KiboRpcService {
         LogT(TAG,"start");
 
         double[] result = new double[3];
+        double[] camMat = api.getNavCamIntrinsics()[0];
 
-        double anglePerPixel = 130.0/Math.sqrt(Math.pow(NAV_CAM_WIDTH,2) + Math.pow(NAV_CAM_HEIGHT,2));
+        double fov_x = 2 * Math.atan(NAV_CAM_WIDTH / (2 * camMat[0]) );
+        double fov_y = 2 * Math.atan(NAV_CAM_HEIGHT / (2 * camMat[4]) );
+        /*double fov_x = 130.0 / 180.0 * Math.PI;
+        double fov_y = 130.0 / 180.0 * Math.PI;*/
+        LogT(TAG , "fov_x : " + (fov_x * 180 / Math.PI) );
+        LogT(TAG , "fov_y : " + (fov_y * 180 / Math.PI) );
+        double angleoffsetX = Math.atan( pixelOffset[0] * Math.tan(fov_x / 2) / (NAV_CAM_WIDTH / 2)) * 180 / Math.PI;
+        double angleoffsetY = Math.atan( pixelOffset[1] * Math.tan(fov_y / 2) / (NAV_CAM_HEIGHT / 2)) * 180 / Math.PI;
 
-        LogT(TAG,"angle per pixel = " + anglePerPixel + "," + anglePerPixel);
+        //LogT(TAG,"angle offset = " + angleoffsetX + "," + angleoffsetY);
 
-        result[0] = pixelOffset[0]*anglePerPixel;
-        result[1] = pixelOffset[1]*anglePerPixel;
+        result[0] = angleoffsetX;
+        result[1] = angleoffsetY;
 
         double angleFromCenter = Math.sqrt(result[0]*result[0] + result[1]*result[1]);
         LogT(TAG,"angle from center = " + angleFromCenter);
@@ -863,7 +895,7 @@ public class YourService extends KiboRpcService {
                 topLeft[0] = markerCenters[i][0];
                 topLeft[1] = markerCenters[i][1];
                 LogT(TAG, "p top left = " + topLeft[0] + ", " + topLeft[1]);
-            }else if(ids.get(i,0)[0] == 1){
+            }else if(ids.get(i,0)[0] == 3){
                 topRight[0] = markerCenters[i][0];
                 topRight[1] = markerCenters[i][1];
                 LogT(TAG, "p top right = " + topRight[0] + ", " + topRight[1]);
@@ -872,7 +904,7 @@ public class YourService extends KiboRpcService {
         double pixelDistance = Math.sqrt(Math.pow(topLeft[0]-topRight[0],2) + Math.pow(topLeft[1]-topRight[1],2));
         LogT(TAG, "pixel distance = " + pixelDistance);
 
-        distancePerPixel = (0.1125*2/pixelDistance);
+        distancePerPixel = (0.0415*2/pixelDistance);
 
         LogT(TAG,"distance(meters) per pixel = " + distancePerPixel);
         return distancePerPixel;
@@ -908,14 +940,14 @@ public class YourService extends KiboRpcService {
                     LogT(TAG, "corners[" + i + "]=" + corners.get(i).dump());
                 }
 
-                double[] arCenter = getARCenter(corners);
+                double[] arCenter = getARCenter(corners , ids);
                 double distancePerPixel = getDistancePerPixel(corners, ids);
                 Mat arCenterMat = new Mat(1,1, CvType.CV_32FC2);
                 arCenterMat.put(0,0, arCenter);
 
-                Mat undistortedPoints = undistortPoints(arCenterMat);
+                /*Mat undistortedPoints = undistortPoints(arCenterMat);
                 arCenter[0] = undistortedPoints.get(0,0)[0];
-                arCenter[1] = undistortedPoints.get(0,0)[1];
+                arCenter[1] = undistortedPoints.get(0,0)[1];*/
 
                 int[] pixelOffset = getPixelOffsetFromCenter(arCenter,30);
                 double[] angleOffset = pixelOffsetToAngleOffset(pixelOffset,angleThreshold);
