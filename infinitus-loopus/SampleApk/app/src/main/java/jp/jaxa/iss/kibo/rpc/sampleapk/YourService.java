@@ -76,14 +76,23 @@ public class YourService extends KiboRpcService {
         Point p60 = pointA;
         Point pOffset = pointA;
         Quaternion lookTowardsAR = new Quaternion(1,0,0,0);
-        if(kozPattern == 1){
+        /*if(kozPattern == 1) {
+            // go 60 percent to pointAprime
+            p60 = averagePoint(pointA, new Point(qrData[1], qrData[2], qrData[3]), 90);
+            // move forward a bit , to the right some
+            pOffset = offsetPoint(p60, 0.1, 0, 0);
+
+            // look a bit down
+            lookTowardsAR = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -25);
+            moveTo(pOffset, lookTowardsAR);
+        }else */if(kozPattern == 1){
             // go 60 percent to pointAprime
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
             // move forward a bit , to the right some
-            pOffset = offsetPoint(p60,0.2,-0.2,0);
+            pOffset = offsetPoint(p60,0.1,-0.2,0);
 
             // look a bit left
-            Quaternion lookLeft = quaternionRelativeRotate(quaternionA, new Vector3f(0,0,1), -10);
+            Quaternion lookLeft = quaternionRelativeRotate(quaternionA, new Vector3f(0,0,1), -25);
             // look a bit down
             lookTowardsAR = quaternionRelativeRotate(lookLeft, new Vector3f(0,1,0), -25);
             moveTo(pOffset, lookTowardsAR);
@@ -96,14 +105,24 @@ public class YourService extends KiboRpcService {
             // look a bit down
             lookTowardsAR = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -35);
             moveTo(pOffset, lookTowardsAR);
-        }
+        } else if(kozPattern == 3) {
+            // go 60 percent to pointAprime
+            p60 = averagePoint(pointA, new Point(qrData[1], qrData[2], qrData[3]), 60);
+            // move forward a bit , to the left some
+            pOffset = offsetPoint(p60, -0.15, -0.2, 0);
 
+            // look a bit right
+            Quaternion lookRight = quaternionRelativeRotate(quaternionA, new Vector3f(0, 0, 1), 25);
+            // look a bit down
+            lookTowardsAR = quaternionRelativeRotate(lookRight, new Vector3f(0, 1, 0), -25);
+            moveTo(pOffset, lookTowardsAR);
+        }
         // read AR
         Quaternion looking = lookTowardsAR;
         double[] arData = new double[6]; // angle offset x, y, angle threshold, pixel offset x, y, distancePerPixel
 
         arData[2] = 0;
-        arData = arEvent(10);
+        arData = arEvent(10, quaternionToEulers(looking));
 
         // determine whether to aim by turning or moving
         Point pAimAR = pOffset;
@@ -118,18 +137,25 @@ public class YourService extends KiboRpcService {
             wait(10000);
         }else{ // move*/
             LogT(TAG,"aim by moving towards target");
-            double[] eulers = quaternionToEulers(looking); // x, y, z
+            double[] eulers = quaternionToEulers(looking); // rads
+            double x = radToDeg(eulers[0]);
+            double y = radToDeg(eulers[1]);
+            double z = radToDeg(eulers[2]);
 
             double yOffset = (arData[4]) * arData[5]+(0.1111-0.0826);
             double xOffset = (arData[3]) * arData[5]-(0.0572+0.0422);
+            yOffset *= -1;
+            xOffset *= -1;
 
-            double dx = Math.sin(eulers[1]) * Math.sin(eulers[2]+90) * yOffset; // -
-            double dy = Math.sin(eulers[1]) * Math.cos(eulers[2]+90) * yOffset; // + needs to be minus
-            double dz = Math.cos(eulers[1]) * yOffset; // -
+            LogT(TAG, "xyOffset = " + xOffset + "," + yOffset);
 
-            double dx2 = Math.cos(eulers[0]) * Math.cos(eulers[2]+90) * xOffset; // -
-            double dy2 = Math.cos(eulers[0]) * Math.sin(eulers[2]+90) * xOffset; // +
-            double dz2 = Math.sin(eulers[0]) * xOffset; // -
+            double dx = yOffset * Math.cos(degToRad(y-90)) * Math.cos(degToRad(z-180));
+            double dy = yOffset * Math.cos(degToRad(y-90)) * Math.sin(degToRad(z-180));
+            double dz = yOffset * Math.sin(degToRad(y-90));
+
+            double dx2 = xOffset * Math.cos(degToRad(x)) * Math.cos(degToRad(z-90));
+            double dy2 = xOffset * Math.cos(degToRad(x)) * Math.sin(degToRad(z-90));
+            double dz2 = xOffset * Math.sin(degToRad(x));
 
             LogT(TAG, "dx dx2, dy dy2, dz dz2 = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz + " " + dz2);
 
@@ -159,8 +185,6 @@ public class YourService extends KiboRpcService {
         LogT(TAG, "reporting mission completion");
         api.reportMissionCompletion();
         LogT(TAG, "successful");
-
-
     }
 
     //Utility
@@ -540,6 +564,19 @@ public class YourService extends KiboRpcService {
         return degs;
     }
 
+    private double degToRad(double deg){
+        final String TAG = "[degToRad]: ";
+        double rad = Math.toRadians(deg);
+        LogT(TAG, "rad = " + rad);
+        return rad;
+    }
+    private double radToDeg(double rad){
+        final String TAG = "[radToDeg]: ";
+        double deg = Math.toDegrees(rad);
+        LogT(TAG, "deg = " + deg);
+        return deg;
+    }
+
     private void logOrientationDetails(Quaternion q){
         eulersToQuaternion(eulersDegToRad(eulersRadToDeg(quaternionToEulers(q))));
         return;
@@ -852,7 +889,7 @@ public class YourService extends KiboRpcService {
         return result;
     }
 
-    private double getDistancePerPixel(List<Mat> corners, Mat ids){ // in meters
+    private double getDistancePerPixel(List<Mat> corners, Mat ids, double[] eulers){ // in meters
         final String TAG = "[getDistancePerPixel]: ";
         LogT(TAG,"start");
 
@@ -876,13 +913,20 @@ public class YourService extends KiboRpcService {
         double pixelDistance = Math.sqrt(Math.pow(topLeft[0]-topRight[0],2) + Math.pow(topLeft[1]-topRight[1],2));
         LogT(TAG, "pixel distance = " + pixelDistance);
 
-        distancePerPixel = (0.1125*2/pixelDistance);
+        double realDistance = 0.1125*2; // meter
+        double z = eulers[2]; // rad
+        double factor = Math.abs(Math.sin(z));
+
+        LogT(TAG, "z angle = " + radToDeg(z));
+        LogT(TAG, "factor = " + factor);
+
+        distancePerPixel = factor*(realDistance/pixelDistance);
 
         LogT(TAG,"distance(meters) per pixel = " + distancePerPixel);
         return distancePerPixel;
     }
 
-    public double[] arEvent(double angleThreshold){ //returns turn angle around y, around z, is within angleThreshold, pixel offset x, y, distancePerPixel
+    public double[] arEvent(double angleThreshold, double[] eulers){ //returns turn angle around y, around z, is within angleThreshold, pixel offset x, y, distancePerPixel
         final String TAG = "[arEvent]: ";
 
         int arContent = 0;
@@ -913,7 +957,7 @@ public class YourService extends KiboRpcService {
                 }
 
                 double[] arCenter = getARCenter(corners);
-                double distancePerPixel = getDistancePerPixel(corners, ids);
+                double distancePerPixel = getDistancePerPixel(corners, ids, eulers);
                 Mat arCenterMat = new Mat(1,1, CvType.CV_32FC2);
                 arCenterMat.put(0,0, arCenter);
 
