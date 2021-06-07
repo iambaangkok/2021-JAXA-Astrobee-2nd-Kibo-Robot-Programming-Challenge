@@ -348,7 +348,7 @@ public class YourService extends KiboRpcService {
 
         LogT(TAG, "start");
 
-        Mat image = new Mat(api.getMatNavCam(), cropImage(45, 50, 32));
+        Mat image = new Mat(api.getMatNavCam(), cropImage(43, 62, 25));
 
         Bitmap bitmap = Bitmap.createBitmap(image.width(), image.height(), Bitmap.Config.ARGB_8888);
         matToBitmap(image, bitmap);
