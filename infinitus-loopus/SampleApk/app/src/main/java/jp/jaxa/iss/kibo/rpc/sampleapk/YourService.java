@@ -52,6 +52,8 @@ public class YourService extends KiboRpcService {
     final Quaternion quaternionA = new Quaternion(0, 0, -0.707f, 0.707f);
     final Vector3f up = new Vector3f(0,-1,0);
 
+    Point pointAPrime = pointA;
+
     static long startTime = 0;
 
     @Override
@@ -64,10 +66,10 @@ public class YourService extends KiboRpcService {
         // move to point A (11.21, -9.8, 4.79) quaternion A (0, 0, -0.707f, 0.707f)
         moveTo(11.21, -9.8, 4.79, 0, 0, -0.707f, 0.707f);
 
-        // scan QR Code to get point A' (qrData[0], qrData[1], qrData[2]) quaternion A' (0, 0, -0.707, 0.707) KOZ pattern (qrData[3])
+        // scan QR Code to get point A' (qrData[1], qrData[2], qrData[3]) quaternion A' (0, 0, -0.707, 0.707) KOZ pattern (qrData[0])
         float[] qrData = qrEvent();
         int kozPattern = (int)qrData[0];
-
+        pointAPrime = new Point(qrData[1],qrData[2],qrData[3]);
         // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
 
         //Quaternion lookAToAPrime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), up);
@@ -76,16 +78,7 @@ public class YourService extends KiboRpcService {
         Point p60 = pointA;
         Point pOffset = pointA;
         Quaternion lookTowardsAR = new Quaternion(1,0,0,0);
-        /*if(kozPattern == 1) {
-            // go 60 percent to pointAprime
-            p60 = averagePoint(pointA, new Point(qrData[1], qrData[2], qrData[3]), 90);
-            // move forward a bit , to the right some
-            pOffset = offsetPoint(p60, 0.1, 0, 0);
-
-            // look a bit down
-            lookTowardsAR = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -25);
-            moveTo(pOffset, lookTowardsAR);
-        }else */if(kozPattern == 1){
+        if(kozPattern == 1 || kozPattern == 8){
             // go 60 percent to pointAprime
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
             // move forward a bit , to the right some
@@ -105,7 +98,7 @@ public class YourService extends KiboRpcService {
             // look a bit down
             lookTowardsAR = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -35);
             moveTo(pOffset, lookTowardsAR);
-        } else if(kozPattern == 3) {
+        } else if(kozPattern == 3 || kozPattern == 4) {
             // go 60 percent to pointAprime
             p60 = averagePoint(pointA, new Point(qrData[1], qrData[2], qrData[3]), 60);
             // move forward a bit , to the left some
@@ -115,6 +108,18 @@ public class YourService extends KiboRpcService {
             Quaternion lookRight = quaternionRelativeRotate(quaternionA, new Vector3f(0, 0, 1), 25);
             // look a bit down
             lookTowardsAR = quaternionRelativeRotate(lookRight, new Vector3f(0, 1, 0), -25);
+            moveTo(pOffset, lookTowardsAR);
+        } else if(kozPattern == 5 || kozPattern == 6){
+            // move left from pointAPrime by 0.325, up by -0.325
+            p60 = offsetPoint(pointAPrime,-0.325,0,-0.325);
+            moveTo(p60,quaternionA);
+            // move down 0.325
+            pOffset = offsetPoint(pointAPrime, -0.325, -0.2, 0.05);
+
+            // look a bit right
+            Quaternion lookRight = quaternionRelativeRotate(quaternionA, new Vector3f(0, 0, 1), 25);
+            // look a bit up
+            lookTowardsAR = quaternionRelativeRotate(lookRight, new Vector3f(0, 1, 0), 5f);
             moveTo(pOffset, lookTowardsAR);
         }
         // read AR
@@ -348,7 +353,7 @@ public class YourService extends KiboRpcService {
 
         LogT(TAG, "start");
 
-        Mat image = new Mat(api.getMatNavCam(), cropImage(43, 62, 25));
+        Mat image = new Mat(api.getMatNavCam(), cropImage(49, 66.8, 16.67));
 
         Bitmap bitmap = Bitmap.createBitmap(image.width(), image.height(), Bitmap.Config.ARGB_8888);
         matToBitmap(image, bitmap);
