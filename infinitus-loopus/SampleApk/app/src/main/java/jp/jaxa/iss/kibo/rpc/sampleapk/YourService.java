@@ -53,6 +53,8 @@ public class YourService extends KiboRpcService {
     final Vector3f up = new Vector3f(0,-1,0);
 
     Point pointAPrime = pointA;
+    Point p60 = pointA;
+    Point pOffset = pointA;
 
     static long startTime = 0;
 
@@ -75,9 +77,10 @@ public class YourService extends KiboRpcService {
         //Quaternion lookAToAPrime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), up);
         //moveTo(11.21, -9.8, 4.79, lookAToAPrime);
 
-        Point p60 = pointA;
-        Point pOffset = pointA;
+
         Quaternion lookTowardsAR = new Quaternion(1,0,0,0);
+        double kozOffsetCorrectionX = 0;
+        double kozOffsetCorrectionY = 0;
         if(kozPattern == 1 || kozPattern == 8){
             // go 60 percent to pointAprime
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
@@ -121,6 +124,8 @@ public class YourService extends KiboRpcService {
             // look a bit up
             lookTowardsAR = quaternionRelativeRotate(lookRight, new Vector3f(0, 1, 0), 5f);
             moveTo(pOffset, lookTowardsAR);
+
+            kozOffsetCorrectionX = -0.02;
         }
         // read AR
         Quaternion looking = lookTowardsAR;
@@ -147,8 +152,8 @@ public class YourService extends KiboRpcService {
             double y = radToDeg(eulers[1]);
             double z = radToDeg(eulers[2]);
 
-            double yOffset = (arData[4]) * arData[5]+(0.1111-0.0826);
-            double xOffset = (arData[3]) * arData[5]-(0.0572+0.0422);
+            double yOffset = (arData[4]) * arData[5] + (0.1111-0.0826) + kozOffsetCorrectionY;
+            double xOffset = (arData[3]) * arData[5] - (0.0572+0.0422) + kozOffsetCorrectionX;
             yOffset *= -1;
             xOffset *= -1;
 
@@ -185,7 +190,7 @@ public class YourService extends KiboRpcService {
         api.laserControl(false);
 
         LogT(TAG, "going to pointB");
-        goToB_event();
+        goToB_event(kozPattern);
 
         LogT(TAG, "reporting mission completion");
         api.reportMissionCompletion();
@@ -281,9 +286,13 @@ public class YourService extends KiboRpcService {
 
     }
 
-    private void goToB_event(){
+    private void goToB_event(int kozPattern){
         final String TAG = "[GoB]: ";
         Log.d(TAG, "start");
+
+        if(kozPattern == 5 || kozPattern == 6){
+            moveTo(offsetPoint(pOffset,-0.1,0,0), quaternionA);
+        }
 
         Log.d(TAG, "Move to entrance");
         moveTo(10.505,-9.2, 4.5, 0, 0, -0.707f, 0.707f);
