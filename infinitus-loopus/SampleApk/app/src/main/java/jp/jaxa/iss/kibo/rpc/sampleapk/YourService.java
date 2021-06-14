@@ -74,10 +74,6 @@ public class YourService extends KiboRpcService {
         pointAPrime = new Point(qrData[1],qrData[2],qrData[3]);
         // move to point A' (11.05, -9.80, 5.51) quaternion A (0, 0, -0.707f, 0.707f)  // delta pos = (-0.16, 0, +0.72)
 
-        //Quaternion lookAToAPrime = quaternionLookRotation(new Vector3f(11.05f - 11.21f, -9.8f + 9.8f, 5.51f - 4.79f), up);
-        //moveTo(11.21, -9.8, 4.79, lookAToAPrime);
-
-
         Quaternion lookTowardsAR = new Quaternion(1,0,0,0);
         double kozOffsetCorrectionX = 0;
         double kozOffsetCorrectionY = 0;
@@ -114,7 +110,7 @@ public class YourService extends KiboRpcService {
             moveTo(pOffset, lookTowardsAR);
         } else if(kozPattern == 5 || kozPattern == 6){
             // move left from pointAPrime by 0.325, up by -0.325
-            p60 = offsetPoint(pointAPrime,-0.325,0,-0.325);
+            p60 = offsetPoint(pointAPrime,-0.325,0,-0.375);
             moveTo(p60,quaternionA);
             // move down 0.325
             pOffset = offsetPoint(pointAPrime, -0.325, -0.2, 0.05);
@@ -126,6 +122,20 @@ public class YourService extends KiboRpcService {
             moveTo(pOffset, lookTowardsAR);
 
             kozOffsetCorrectionX = -0.02;
+        } else if(kozPattern == 7){
+            //move right
+            moveTo(11.5, -9.8, 4.79, 0, 0, -0.707f, 0.707f);
+
+            p60 = new Point(11.5, -9.8, 5.55);
+            pOffset = offsetPoint(p60, -0.1, -0.2, 0);
+            // look a bit left
+            Quaternion lookLeft = quaternionRelativeRotate(quaternionA, new Vector3f(0, 0, 1), -20);
+            // look a bit up
+            lookTowardsAR = quaternionRelativeRotate(lookLeft, new Vector3f(0, 1, 0), 5);
+            moveTo(p60, lookTowardsAR);
+
+            kozOffsetCorrectionY = -0.025;
+            kozOffsetCorrectionX = 0.015;
         }
         // read AR
         Quaternion looking = lookTowardsAR;
@@ -134,52 +144,52 @@ public class YourService extends KiboRpcService {
         arData[2] = 0;
         arData = arEvent(10, quaternionToEulers(looking));
 
-        // determine whether to aim by turning or moving
+        // aim by moving
         Point pAimAR = pOffset;
 
-        /*if(arData[2] == 0){ // turn
-            LogT(TAG,"aim by turning towards target");
-            Quaternion lookAtTargetY = quaternionRelativeRotate(looking, new Vector3f(0,1,0), (float)-arData[1]);
-            Quaternion lookAtTargetYX = quaternionRelativeRotate(lookAtTargetY, new Vector3f(0,0,1), (float)-arData[0]);
+        LogT(TAG,"aim by moving towards target");
+        double[] eulers = quaternionToEulers(looking); // rads
+        double x = radToDeg(eulers[0]);
+        double y = radToDeg(eulers[1]);
+        double z = radToDeg(eulers[2]);
 
-            moveTo(pOffset, lookAtTargetYX);
-            looking = lookAtTargetYX;
-            wait(10000);
-        }else{ // move*/
-            LogT(TAG,"aim by moving towards target");
-            double[] eulers = quaternionToEulers(looking); // rads
-            double x = radToDeg(eulers[0]);
-            double y = radToDeg(eulers[1]);
-            double z = radToDeg(eulers[2]);
+        double yOffset = (arData[4]) * arData[5] + (0.1111-0.0826) + kozOffsetCorrectionY;
+        double xOffset = (arData[3]) * arData[5] - (0.0572+0.0422) + kozOffsetCorrectionX;
+        yOffset *= -1;
+        xOffset *= -1;
 
-            double yOffset = (arData[4]) * arData[5] + (0.1111-0.0826) + kozOffsetCorrectionY;
-            double xOffset = (arData[3]) * arData[5] - (0.0572+0.0422) + kozOffsetCorrectionX;
-            yOffset *= -1;
-            xOffset *= -1;
+        LogT(TAG, "xyOffset = " + xOffset + "," + yOffset);
 
-            LogT(TAG, "xyOffset = " + xOffset + "," + yOffset);
+        double dx = yOffset * Math.cos(degToRad(y-90)) * Math.cos(degToRad(z-180));
+        double dy = yOffset * Math.cos(degToRad(y-90)) * Math.sin(degToRad(z-180));
+        double dz = yOffset * Math.sin(degToRad(y-90));
 
-            double dx = yOffset * Math.cos(degToRad(y-90)) * Math.cos(degToRad(z-180));
-            double dy = yOffset * Math.cos(degToRad(y-90)) * Math.sin(degToRad(z-180));
-            double dz = yOffset * Math.sin(degToRad(y-90));
+        double dx2 = xOffset * Math.cos(degToRad(x)) * Math.cos(degToRad(z-90));
+        double dy2 = xOffset * Math.cos(degToRad(x)) * Math.sin(degToRad(z-90));
+        double dz2 = xOffset * Math.sin(degToRad(x));
 
-            double dx2 = xOffset * Math.cos(degToRad(x)) * Math.cos(degToRad(z-90));
-            double dy2 = xOffset * Math.cos(degToRad(x)) * Math.sin(degToRad(z-90));
-            double dz2 = xOffset * Math.sin(degToRad(x));
+        LogT(TAG, "dx dx2, dy dy2, dz dz2 = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz + " " + dz2);
+        // final manual correction
 
-            LogT(TAG, "dx dx2, dy dy2, dz dz2 = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz + " " + dz2);
+        Point pOffsetFinal = pOffset;
+        if(kozPattern == 1){
+            pOffsetFinal = offsetPoint(pOffset , 0.029 , 0.032,0);
+        }
+        else if(kozPattern == 2){
+            pOffsetFinal = offsetPoint(pOffset , -0.005 , -0.02,0);
+        }
+        else if(kozPattern == 3){
+            pOffsetFinal = offsetPoint(pOffset , 0.016 , -0.015,0);
+        }
+        else if(kozPattern == 4){
+            pOffsetFinal = offsetPoint(pOffset , 0.016 , -0.015,0);
+        }
 
-            pAimAR = offsetPoint(pOffset,dx+dx2, dy+dy2, dz+dz2);
+        pAimAR = offsetPoint(pOffsetFinal,dx+dx2, dy+dy2, dz+dz2);
 
-            moveTo(pAimAR, looking);
-            wait(5000);
 
-            /*double dx = -Math.sin(eulers[2]) * (arData[3]) * arData[5];
-
-            double dy = Math.cos(eulers[2]) * Math.cos(eulers[1]) * (arData[4]) * arData[5];
-            double dz = Math.sin(eulers[1]) * (arData[4]) * arData[5];*/
-        //}
-
+        moveTo(pAimAR, looking);
+        wait(5000);
 
         // laser, snap, finish
         LogT(TAG,"laser on");
@@ -292,10 +302,15 @@ public class YourService extends KiboRpcService {
 
         if(kozPattern == 5 || kozPattern == 6){
             moveTo(offsetPoint(pOffset,-0.1,0,0), quaternionA);
+        }else if(kozPattern == 7){
+            // move right
+            moveTo(11.5, -9.8, 5.55, 0, 0, -0.707f, 0.707f);
+            //move up
+            moveTo(11.5, -9.8, 4.79, 0, 0, -0.707f, 0.707f);
         }
 
         Log.d(TAG, "Move to entrance");
-        moveTo(10.505,-9.2, 4.5, 0, 0, -0.707f, 0.707f);
+        moveTo(10.505,-9.2, 4.75, 0, 0, -0.707f, 0.707f);
 
         Log.d(TAG, "Pass through KOZ");
         moveTo(10.505, -8, 4.5, 0, 0, -0.707f, 0.707f);
@@ -317,7 +332,7 @@ public class YourService extends KiboRpcService {
         if(status == true){
             api.flashlightControlFront(brightness);
             LogT(TAG, "brightness = " + String.valueOf(brightness));
-            wait(500);
+            wait(1500);
         }else{
             api.flashlightControlFront(0f);
             LogT(TAG, "off");
