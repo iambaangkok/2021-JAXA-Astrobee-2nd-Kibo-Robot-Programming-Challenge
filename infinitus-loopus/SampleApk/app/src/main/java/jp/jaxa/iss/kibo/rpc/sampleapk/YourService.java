@@ -80,7 +80,21 @@ public class YourService extends KiboRpcService {
             // go 60 percent to pointAprime
             p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 80);
             // move forward a bit , to the right some
+<<<<<<< Updated upstream
             pOffset = offsetPoint(p60,0.2,-0.2,0);
+=======
+            pOffset = offsetPoint(p60, 0.1, 0, 0);
+
+            // look a bit down
+            lookTowardsAR = quaternionRelativeRotate(quaternionA, new Vector3f(0,1,0), -25);
+            moveTo(pOffset, lookTowardsAR);
+        }else */
+        if(kozPattern == 1){
+            // go 60 percent to pointAprime
+            p60 = averagePoint(pointA, new Point(qrData[1],qrData[2],qrData[3]), 60);
+            // move forward a bit , to the right some
+            pOffset = offsetPoint(p60,0.1,-0.2,0);
+>>>>>>> Stashed changes
 
             // look a bit left
             Quaternion lookleft = quaternionRelativeRotate(quaternionA, new Vector3f(0,0,1), -25);
@@ -129,7 +143,25 @@ public class YourService extends KiboRpcService {
         double dz2 = Math.sin(eulers[0]) * (-arData[3]) * arData[5];
         LogT(TAG, "dx dx2, dy dy2, dz = " + dx + " " + dx2 + ", " + dy + " " + dy2 + ", " + dz);
 
+<<<<<<< Updated upstream
         pAimAR = offsetPoint(pOffset,dx+dx2-(0.0572+0.0422), dy+dy2, dz + (0.1111-0.0826));
+=======
+            Point pOffsetFinal = pOffset;
+            if(kozPattern == 1){
+                pOffsetFinal = offsetPoint(pOffset , 0.029 , 0.032,0);
+            }
+            else if(kozPattern == 2){
+                pOffsetFinal = offsetPoint(pOffset , -0.005 , -0.02,0);
+            }
+            else if(kozPattern == 3){
+                pOffsetFinal = offsetPoint(pOffset , 0.016 , -0.015,0);
+            }
+            else if(kozPattern == 4){
+                pOffsetFinal = offsetPoint(pOffset , 0.016 , -0.015,0);
+            }
+
+            pAimAR = offsetPoint(pOffsetFinal,dx+dx2, dy+dy2, dz+dz2);
+>>>>>>> Stashed changes
 
         moveTo(pAimAR, looking);
         wait(5000);
